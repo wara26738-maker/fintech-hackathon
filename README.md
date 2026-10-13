@@ -71,6 +71,8 @@ The agent:
 - [Security Self-Assessment](docs/security.md)
 - [Deployment Guide](docs/deployment.md)
 - [Test Cases](docs/testcases.md)
+- [Project Brief](docs/brief.md)
+- [Project Structure](docs/project-structure.md)
 
 ## 📦 Supported Scenarios
 
