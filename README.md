@@ -66,7 +66,7 @@ The agent:
 
 ## 📄 Documentation
 
-- [Non-Technical Summary](docs/non-technical-summary.md)   ← เพิ่มบรรทัดนี้
+- [Non-Technical Summary](docs/non-technical-summary.md)
 - [Technical Documentation](docs/technical.md)
 - [Security Self-Assessment](docs/security.md)
 - [Deployment Guide](docs/deployment.md)
