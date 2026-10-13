@@ -1,0 +1,127 @@
+# ─────────────────────────────────────────
+# Environment variables (API keys, secrets)
+# ─────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# ─────────────────────────────────────────
+# Python
+# ─────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ─────────────────────────────────────────
+# Virtual environments
+# ─────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ─────────────────────────────────────────
+# Testing & Coverage
+# ─────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# ─────────────────────────────────────────
+# Jupyter Notebook
+# ─────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ─────────────────────────────────────────
+# IDE / Editor
+# ─────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# ─────────────────────────────────────────
+# OS files
+# ─────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ─────────────────────────────────────────
+# Logs & Database
+# ─────────────────────────────────────────
+*.log
+logs/
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# ─────────────────────────────────────────
+# Build artifacts
+# ─────────────────────────────────────────
+*.pid
+*.seed
+*.pid.lock
+.cache/
+.python-version
+
+# ─────────────────────────────────────────
+# Model / Data files (large files)
+# ─────────────────────────────────────────
+models/
+checkpoints/
+*.h5
+*.pkl
+*.pt
+*.pth
+*.ckpt
+data/raw/
+data/processed/
+
+# ─────────────────────────────────────────
+# Secrets / Sensitive
+# ─────────────────────────────────────────
+secrets/
+*.pem
+*.key
+*.crt
+credentials.json
+service-account.json
