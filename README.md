@@ -64,6 +64,14 @@ The agent:
 
 ---
 
+## 📄 Documentation
+
+- [Non-Technical Summary](docs/non-technical-summary.md)   ← เพิ่มบรรทัดนี้
+- [Technical Documentation](docs/technical.md)
+- [Security Self-Assessment](docs/security.md)
+- [Deployment Guide](docs/deployment.md)
+- [Test Cases](docs/testcases.md)
+
 ## 📦 Supported Scenarios
 
 1. **Smart Transfers** — Transfer by name, phone, or note; scheduled transfers; split-bill collection
