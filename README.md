@@ -1,0 +1,2 @@
+# fintech-hackathon
+AI fintech
