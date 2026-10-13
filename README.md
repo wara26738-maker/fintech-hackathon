@@ -57,6 +57,7 @@ The agent:
 ## 🔐 Permission Tiers
 
 | Tier | Policy | Examples |
+|---|---|---|
 | 🟢 Green | Automatic | Balance, transaction and bill queries; investment-return queries |
 | 🟡 Yellow | User confirmation | Transfers up to RMB 1,000/day; subscription cancellation; virtual-card application |
 | 🔴 Red | Strong verification (MFA) | Transfers above RMB 1,000/day; password changes; card loss; investment subscription |
