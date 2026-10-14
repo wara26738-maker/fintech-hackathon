@@ -16,16 +16,6 @@ and it gets things done automatically.
 4. **Acts** — Completes the banking task for you
 5. **Records** — Keeps a log of everything for transparency
 
-## Safety Comes First — Three Levels
-
-| Level | Meaning | Example |
-|---|---|---|
-| 🟢 Green | Do it automatically | Check balance, view history |
-| 🟡 Yellow | Ask the user first | Transfer up to 1,000 baht, cancel subscription |
-| 🔴 Red | Require strong verification | Transfer over 1,000 baht, change password, report lost card |
-
-In short: **small things happen instantly, big things require confirmation.**
-
 ## Key Technologies (In Plain Words)
 
 | Technology | What It Does |
@@ -44,6 +34,16 @@ In short: **small things happen instantly, big things require confirmation.**
 4. Card management (apply, adjust limits, report loss)
 5. Subscription detection & cancellation
 6. Cross-scenario tasks (e.g., remember a birthday and order gifts in advance)
+
+## Safety Comes First — Three Levels
+
+| Level | Meaning | Example |
+|---|---|---|
+| 🟢 Green | Do it automatically | Check balance, view history |
+| 🟡 Yellow | Ask the user first | Transfer up to 1,000 baht, cancel subscription |
+| 🔴 Red | Require strong verification | Transfer over 1,000 baht, change password, report lost card |
+
+In short: **small things happen instantly, big things require confirmation.**
 
 ## Bottom Line
 
