@@ -125,3 +125,4 @@ secrets/
 *.crt
 credentials.json
 service-account.json
+tempCodeRunnerFile.py
