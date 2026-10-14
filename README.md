@@ -1,4 +1,4 @@
-## Banking AI Agent — Fintech Hackathon
+# Banking AI Agent — Fintech Hackathon
 
 An intelligent banking assistant that understands natural-language financial intent,
 plans multi-step task chains, and executes banking operations within a strict
