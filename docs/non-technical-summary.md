@@ -2,11 +2,13 @@
 
 > A plain-language explanation for readers who are not developers.
 
+
 ## What It Is
 
 A smart assistant inside your banking app that you can talk to like a real person —
 for example, *"Send 500 baht to my mom"* or *"How much did I spend last month?"* —
 and it gets things done automatically.
+
 
 ## How It Works (Like a Human Assistant)
 
@@ -15,6 +17,7 @@ and it gets things done automatically.
 3. **Checks safety** — Decides if the action needs your permission first
 4. **Acts** — Completes the banking task for you
 5. **Records** — Keeps a log of everything for transparency
+
 
 ## Key Technologies (In Plain Words)
 
@@ -26,6 +29,7 @@ and it gets things done automatically.
 | Prompt Injection Defense | Blocks attempts to trick the AI |
 | Sandbox | Runs AI-generated code in a safe, locked environment |
 
+
 ## What It Can Do
 
 1. Smart transfers (by name, phone, note; scheduled; split bills)
@@ -34,6 +38,7 @@ and it gets things done automatically.
 4. Card management (apply, adjust limits, report loss)
 5. Subscription detection & cancellation
 6. Cross-scenario tasks (e.g., remember a birthday and order gifts in advance)
+
 
 ## Safety Comes First — Three Levels
 
@@ -44,6 +49,7 @@ and it gets things done automatically.
 | 🔴 Red | Require strong verification | Transfer over 1,000 baht, change password, report lost card |
 
 In short: **small things happen instantly, big things require confirmation.**
+
 
 ## Bottom Line
 
