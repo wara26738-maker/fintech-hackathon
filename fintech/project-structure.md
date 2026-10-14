@@ -18,8 +18,8 @@
 |---|---|---|
 | 1 | `README.md` | ✅ Done |
 | 2 | `docs/` folder + documents | ✅ Done |
-| 3 | `.gitignore` | ⬅️ To create |
-| 4 | `.env.example` | ⬅️ To create |
+| 3 | `.gitignore` | ✅ Done |
+| 4 | `.env.example` | ✅ Done |
 | 5 | `requirements.txt` (can be empty or with names) | ⬅️ To create |
 | 6 | Folder structure `src/` (empty files) | ⬅️ To create |
 | 7 | Folder structure `tests/` (empty files) | ⬅️ To create |
