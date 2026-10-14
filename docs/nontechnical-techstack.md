@@ -90,7 +90,7 @@ Our project needs:
 
 ---
 
-### 6. 💻 Frontend: HTML, CSS, JavaScript
+### 6. 💻 Frontend: HTML, CSS, JavaScript, react
 
 **What it is:** The visual part users see.
 
