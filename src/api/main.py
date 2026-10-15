@@ -4,7 +4,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
@@ -13,7 +13,7 @@ from ..db.session import init_db
 
 
 # ═══════════════════════════════════════════
-# APP
+# LIFESPAN
 # ═══════════════════════════════════════════
 
 @asynccontextmanager
@@ -31,17 +31,27 @@ async def lifespan(app: FastAPI):
             from ..db.seed import seed_data
             seed_data()
             print("✅ Seed complete")
+        else:
+            print(f"✅ Database has {db.query(User).count()} users")
+    except Exception as e:
+        print(f"❌ Seed error: {e}")
     finally:
         db.close()
     
     print("✅ API ready")
     yield
     print("👋 API shutting down...")
+
+
+# ═══════════════════════════════════════════
+# APP
+# ═══════════════════════════════════════════
+
 app = FastAPI(
     title="Banking AI Agent API",
     description="AI-powered banking assistant",
     version="1.0.0",
-    lifespan=lifespan         
+    lifespan=lifespan
 )
 
 
@@ -59,7 +69,7 @@ app.add_middleware(
 
 
 # ═══════════════════════════════════════════
-# REQUEST / RESPONSE MODELS
+# MODELS
 # ═══════════════════════════════════════════
 
 class ChatRequest(BaseModel):
@@ -79,7 +89,7 @@ class ChatResponse(BaseModel):
     tier: Optional[str] = None
     requires_confirmation: bool = False
     requires_mfa: bool = False
-    data: Optional[Dict[str, Any]] = None
+    data: Optional[Any] = None
 
 
 # ═══════════════════════════════════════════
@@ -90,6 +100,12 @@ class ChatResponse(BaseModel):
 async def root():
     """Serve the web chat UI"""
     return HTMLResponse(content=get_chat_html())
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Return empty favicon to prevent 404"""
+    return Response(status_code=204)
 
 
 @app.get("/api/health")
@@ -118,10 +134,15 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=400, detail="Message cannot be empty")
     
     try:
+        print(f"🔍 DEBUG: message='{request.message}'")
         response = process_message(request.message, request.user_id)
+        print(f"🔍 DEBUG: response={response}")
         return ChatResponse(**response)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        print(f"❌ ERROR: {type(e).__name__}: {e}")
+        print(f"❌ TRACEBACK:\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 
 @app.post("/api/confirm", response_model=ChatResponse)
@@ -130,10 +151,15 @@ async def confirm(request: ConfirmRequest):
     Confirm a pending action
     """
     try:
+        print(f"🔍 DEBUG: confirm intent={request.intent}")
         response = confirm_action(request.intent, request.user_id)
+        print(f"🔍 DEBUG: confirm response={response}")
         return ChatResponse(**response)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        print(f"❌ ERROR: {type(e).__name__}: {e}")
+        print(f"❌ TRACEBACK:\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 
 # ═══════════════════════════════════════════
@@ -305,7 +331,7 @@ Try:
             div.className = `message ${sender}`;
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
-            bubble.textContent = text;
+            bubble.textContent = text || '(no response)';
             div.appendChild(bubble);
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
@@ -342,7 +368,11 @@ Try:
                         body: JSON.stringify({intent: pendingIntent, user_id: 1})
                     });
                     const data = await res.json();
-                    addMessage(data.reply, 'ai');
+                    if (!res.ok) {
+                        addMessage('❌ ' + (data.detail || 'Error'), 'ai');
+                    } else {
+                        addMessage(data.reply, 'ai');
+                    }
                     pendingIntent = null;
                 } catch (e) {
                     addMessage('❌ Error: ' + e.message, 'ai');
@@ -366,7 +396,12 @@ Try:
                 });
                 const data = await res.json();
                 hideTyping();
-                addMessage(data.reply, 'ai');
+                
+                if (!res.ok) {
+                    addMessage('❌ ' + (data.detail || 'Error'), 'ai');
+                } else {
+                    addMessage(data.reply, 'ai');
+                }
 
                 if (data.requires_confirmation && data.intent) {
                     pendingIntent = data.intent;
@@ -385,11 +420,6 @@ Try:
 </body>
 </html>
 """
-
-
-# ═══════════════════════════════════════════
-# STARTUP
-# ═══════════════════════════════════════════
 
 
 # ═══════════════════════════════════════════
