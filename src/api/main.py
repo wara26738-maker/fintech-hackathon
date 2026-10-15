@@ -18,19 +18,30 @@ from ..db.session import init_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     print("🚀 Banking AI Agent API starting...")
     init_db()
-    print("✅ API ready — http://localhost:8000")
+    
+    # ─── Auto-seed if database is empty ───
+    from ..db.session import SessionLocal
+    from ..db.models import User
+    db = SessionLocal()
+    try:
+        if db.query(User).count() == 0:
+            print("📦 Seeding database...")
+            from ..db.seed import seed_data
+            seed_data()
+            print("✅ Seed complete")
+    finally:
+        db.close()
+    
+    print("✅ API ready")
     yield
-    # Shutdown
     print("👋 API shutting down...")
-
 app = FastAPI(
     title="Banking AI Agent API",
     description="AI-powered banking assistant",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan         
 )
 
 
