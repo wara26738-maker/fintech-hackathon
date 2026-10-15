@@ -4,7 +4,7 @@
 - [x] Seed Data
 - [x] Banking Tools
 - [x] Permission Layer
-- [ ] Intent Parser ← กำลังทำ
+- [x] Intent Parser
 - [ ] Agent Loop
 - [ ] FastAPI
 - [ ] Web Chat
