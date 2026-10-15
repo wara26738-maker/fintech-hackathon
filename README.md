@@ -85,6 +85,19 @@ The agent:
 
 ---
 
+## 🎮 Live Demo
+
+**Try the app:** [https://fintech-hackathon-production-7c97.up.railway.app](https://fintech-hackathon-production-7c97.up.railway.app)
+
+> Powered by Railway. Try these commands:
+> - `Check balance`
+> - `Show transactions`
+> - `Transfer 500 to Mom`
+> - `What am I paying for`
+> - `Block card`
+
+---
+
 ## ⚙️ Installation
 
 ### Prerequisites
