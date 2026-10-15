@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-from ..agent.loop import process_message, confirm_action
+from ..agent.loop import process_message, confirm_action, verify_otp
 from ..db.session import init_db
 
 
@@ -21,7 +21,6 @@ async def lifespan(app: FastAPI):
     print("🚀 Banking AI Agent API starting...")
     init_db()
     
-    # ─── Auto-seed if database is empty ───
     from ..db.session import SessionLocal
     from ..db.models import User
     db = SessionLocal()
@@ -83,6 +82,11 @@ class ConfirmRequest(BaseModel):
     user_id: int = 1
 
 
+class VerifyOTPRequest(BaseModel):
+    user_id: int = 1
+    otp: str
+
+
 class ChatResponse(BaseModel):
     reply: str
     status: str
@@ -90,6 +94,7 @@ class ChatResponse(BaseModel):
     requires_confirmation: bool = False
     requires_mfa: bool = False
     data: Optional[Any] = None
+    intent: Optional[Dict[str, Any]] = None
 
 
 # ═══════════════════════════════════════════
@@ -98,19 +103,16 @@ class ChatResponse(BaseModel):
 
 @app.get("/")
 async def root():
-    """Serve the web chat UI"""
     return HTMLResponse(content=get_chat_html())
 
 
 @app.get("/favicon.ico")
 async def favicon():
-    """Return empty favicon to prevent 404"""
     return Response(status_code=204)
 
 
 @app.get("/api/health")
 async def health_check():
-    """Health check"""
     return {
         "status": "ok",
         "version": "1.0.0",
@@ -120,24 +122,31 @@ async def health_check():
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    """
-    Send a message to the AI agent
-    
-    Example:
-        POST /api/chat
-        {
-            "message": "Check balance",
-            "user_id": 1
-        }
-    """
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
     
     try:
+        from ..agent.loop import has_pending_suggestion, handle_suggestion
+        
+        if has_pending_suggestion(request.user_id):
+            answer = request.message.strip().lower()
+            if answer in ["yes", "y", "no", "n", "ใช่", "ไม่"]:
+                result = handle_suggestion(request.user_id, answer)
+                
+                # ถ้า yes → retry ด้วยข้อความใหม่
+                if result.get("retry_message"):
+                    retry_msg = result["retry_message"]
+                    result = process_message(retry_msg, request.user_id)
+                    result["reply"] = f"✅ Interpreting as '{retry_msg}'\n\n" + result["reply"]
+                
+                return ChatResponse(**result)
+        
+        # ─── Normal process ───
         print(f"🔍 DEBUG: message='{request.message}'")
         response = process_message(request.message, request.user_id)
         print(f"🔍 DEBUG: response={response}")
         return ChatResponse(**response)
+    
     except Exception as e:
         import traceback
         print(f"❌ ERROR: {type(e).__name__}: {e}")
@@ -147,19 +156,26 @@ async def chat(request: ChatRequest):
 
 @app.post("/api/confirm", response_model=ChatResponse)
 async def confirm(request: ConfirmRequest):
-    """
-    Confirm a pending action
-    """
     try:
-        print(f"🔍 DEBUG: confirm intent={request.intent}")
         response = confirm_action(request.intent, request.user_id)
-        print(f"🔍 DEBUG: confirm response={response}")
         return ChatResponse(**response)
     except Exception as e:
         import traceback
-        print(f"❌ ERROR: {type(e).__name__}: {e}")
-        print(f"❌ TRACEBACK:\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
+        print(f"❌ ERROR: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/verify-otp", response_model=ChatResponse)
+async def verify_otp_endpoint(request: VerifyOTPRequest):
+    try:
+        print(f"🔍 DEBUG: OTP='{request.otp}'")
+        response = verify_otp(request.user_id, request.otp)
+        print(f"🔍 DEBUG: response={response}")
+        return ChatResponse(**response)
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ═══════════════════════════════════════════
@@ -167,7 +183,6 @@ async def confirm(request: ConfirmRequest):
 # ═══════════════════════════════════════════
 
 def get_chat_html() -> str:
-    """Return the web chat HTML page"""
     return """
 <!DOCTYPE html>
 <html lang="en">
@@ -306,8 +321,8 @@ def get_chat_html() -> str:
 Try:
 • "Check balance"
 • "Show transactions"
-• "What am I paying for"
-• "Transfer 500 to Mom"</div>
+• "Transfer 500 to Mom" (Yellow: confirm)
+• "Transfer 5,000 to Mom" (Red: OTP)</div>
             </div>
         </div>
         <div class="input-area">
@@ -321,6 +336,7 @@ Try:
         const input = document.getElementById('input');
         const sendBtn = document.getElementById('send');
         let pendingIntent = null;
+        let pendingMFA = false;
 
         input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') send();
@@ -359,7 +375,34 @@ Try:
             input.value = '';
             sendBtn.disabled = true;
 
-            // Handle y/n confirmation
+            // ─── Handle OTP input ───
+            if (pendingMFA) {
+                try {
+                    const res = await fetch('/api/verify-otp', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({user_id: 1, otp: text})
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        addMessage('❌ ' + (data.detail || 'Error'), 'ai');
+                    } else {
+                        addMessage(data.reply, 'ai');
+                        // ถ้า OTP ถูกต้อง → ไม่ pending อีก
+                        if (!data.requires_mfa) {
+                            pendingMFA = false;
+                        }
+                    }
+                } catch (e) {
+                    addMessage('❌ Error: ' + e.message, 'ai');
+                    pendingMFA = false;
+                }
+                sendBtn.disabled = false;
+                input.focus();
+                return;
+            }
+
+            // ─── Handle y/n confirmation ───
             if (pendingIntent && (text.toLowerCase() === 'y' || text.toLowerCase() === 'yes')) {
                 try {
                     const res = await fetch('/api/confirm', {
@@ -388,6 +431,7 @@ Try:
 
             showTyping();
 
+            // ─── Send to chat API ───
             try {
                 const res = await fetch('/api/chat', {
                     method: 'POST',
@@ -403,10 +447,16 @@ Try:
                     addMessage(data.reply, 'ai');
                 }
 
-                if (data.requires_confirmation && data.intent) {
+                // ─── Set pending state ───
+                if (data.requires_mfa) {
+                    pendingMFA = true;
+                    pendingIntent = null;
+                } else if (data.requires_confirmation && data.intent) {
                     pendingIntent = data.intent;
+                    pendingMFA = false;
                 } else {
                     pendingIntent = null;
+                    pendingMFA = false;
                 }
             } catch (e) {
                 hideTyping();

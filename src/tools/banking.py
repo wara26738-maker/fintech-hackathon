@@ -327,3 +327,31 @@ def find_beneficiary(user_id: int, nickname: str) -> Dict[str, Any]:
         }
     finally:
         db.close()
+
+def block_card(card_id: int) -> Dict[str, Any]:
+    """Block a card temporarily"""
+    db = SessionLocal()
+    try:
+        card = db.query(Card).filter(Card.id == card_id).first()
+        if not card:
+            return {"status": "error", "message": "Card not found"}
+        if card.status == CardStatus.BLOCKED:
+            return {"status": "error", "message": "Card already blocked"}
+        
+        card.status = CardStatus.BLOCKED
+        db.commit()
+        
+        return {
+            "status": "success",
+            "data": {
+                "card_id": card.id,
+                "card_number": f"****-****-****-{card.card_number[-4:]}" if card.card_number else "****",
+                "status": "blocked",
+                "message": "Card blocked successfully"
+            }
+        }
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()

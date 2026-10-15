@@ -50,6 +50,7 @@ YELLOW_ACTIONS = {
     "cancel_subscription",
     "apply_virtual_card",
     "update_note",
+    "block_card",
 }
 
 # Actions ที่เป็น Red (ต้อง MFA)
@@ -58,6 +59,7 @@ RED_ACTIONS = {
     "change_password",
     "subscribe_investment",
     "close_account",
+    "unblock_card",
 }
 
 
