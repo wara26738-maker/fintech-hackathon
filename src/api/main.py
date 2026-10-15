@@ -184,7 +184,7 @@ def get_chat_html() -> str:
             background: #f7f8fc;
         }
         .message {
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.3125rem;
             display: flex;
             animation: fadeIn 0.3s ease;
         }
@@ -192,11 +192,45 @@ def get_chat_html() -> str:
             from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .message.user { justify-content: flex-end; }
-        .message.ai { justify-content: flex-start; }
+        .message.user { 
+            justify-content: flex-end;
+            align-items: flex-start;
+            gap: 0.375rem;
+        }
+        .message.ai { 
+            justify-content: flex-start;
+            align-items: flex-start;
+            gap: 0.375rem;
+        }
+        .ai-avatar {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            line-height: 1;
+        }
+        .user-avatar {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            line-height: 1;
+        }
         .bubble {
             max-width: 85%;
-            padding: 0.25rem 0.5rem;
+            padding: 0.3125rem 0.5rem;
             border-radius: 10px;
             font-size: 0.8125rem;
             line-height: 1.2;
@@ -253,6 +287,39 @@ def get_chat_html() -> str:
             40% { content: '.'; }
             60% { content: '..'; }
             80%, 100% { content: '...'; }
+        }
+        
+        /* ─── Confirm Buttons ─── */
+        .confirm-buttons {
+            display: flex;
+            gap: 0.375rem;
+            margin-top: 0.375rem;
+        }
+        .confirm-btn {
+            padding: 0.3125rem 0.625rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            flex: 1;
+        }
+        .confirm-yes {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        .confirm-yes:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(16,185,129,0.3);
+        }
+        .confirm-no {
+            background: #f3f4f6;
+            color: #6b7280;
+            border: 1px solid #e5e7eb;
+        }
+        .confirm-no:hover {
+            background: #e5e7eb;
         }
         
         /* ─── Welcome ─── */
@@ -331,6 +398,7 @@ def get_chat_html() -> str:
         </div>
         <div class="chat-area" id="chat">
             <div class="message ai">
+                <div class="ai-avatar">🤖</div>
                 <div class="bubble" style="max-width: 100%; padding: 0.25rem 0.5rem; line-height: 1.15;">
                     <div class="welcome-title">👋 Hello! I'm your AI banking assistant.</div>
                     <div class="welcome-subtitle">Click any button to try:</div>
@@ -401,13 +469,66 @@ def get_chat_html() -> str:
             if (e.key === 'Enter') send();
         });
 
-        function addMessage(text, sender) {
+        function addMessage(text, sender, showConfirmButtons = false) {
             const div = document.createElement('div');
             div.className = `message ${sender}`;
+            
+            // AI avatar (left)
+            if (sender === 'ai') {
+                const avatar = document.createElement('div');
+                avatar.className = 'ai-avatar';
+                avatar.textContent = '🤖';
+                div.appendChild(avatar);
+            }
+            
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
-            bubble.textContent = text || '(no response)';
+            
+            if (text) {
+                const textNode = document.createElement('div');
+                textNode.textContent = text;
+                bubble.appendChild(textNode);
+            }
+            
+            // ปุ่ม Yes/No
+            if (showConfirmButtons) {
+                const btnDiv = document.createElement('div');
+                btnDiv.className = 'confirm-buttons';
+                
+                const yesBtn = document.createElement('button');
+                yesBtn.className = 'confirm-btn confirm-yes';
+                yesBtn.textContent = '✅ Yes';
+                yesBtn.onclick = () => {
+                    btnDiv.remove();
+                    input.value = 'y';
+                    send();
+                };
+                
+                const noBtn = document.createElement('button');
+                noBtn.className = 'confirm-btn confirm-no';
+                noBtn.textContent = '❌ No';
+                noBtn.onclick = () => {
+                    btnDiv.remove();
+                    input.value = 'n';
+                    send();
+                };
+                
+                btnDiv.appendChild(yesBtn);
+                btnDiv.appendChild(noBtn);
+                bubble.appendChild(btnDiv);
+            }
+            
             div.appendChild(bubble);
+            
+            // ⭐ User avatar (right) — ต้อง append หลัง bubble
+            if (sender === 'user') {
+                const avatar = document.createElement('div');
+                avatar.className = 'user-avatar';
+                avatar.textContent = '🧔🏻‍♂️';
+                div.appendChild(avatar);
+                console.log('User avatar added:', avatar);
+            }
+            
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
         }
@@ -416,7 +537,17 @@ def get_chat_html() -> str:
             const div = document.createElement('div');
             div.className = 'message ai';
             div.id = 'typing';
-            div.innerHTML = '<div class="bubble"><span class="typing">Thinking</span></div>';
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'ai-avatar';
+            avatar.textContent = '🤖';
+            div.appendChild(avatar);
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.innerHTML = '<span class="typing">Thinking</span>';
+            div.appendChild(bubble);
+            
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
         }
@@ -501,17 +632,19 @@ def get_chat_html() -> str:
                 });
                 const data = await res.json();
                 hideTyping();
-                addMessage(res.ok ? data.reply : '❌ ' + (data.detail || 'Error'), 'ai');
 
                 if (data.requires_mfa) {
                     pendingMFA = true;
                     pendingIntent = null;
+                    addMessage(data.reply, 'ai');
                 } else if (data.requires_confirmation && data.intent) {
                     pendingIntent = data.intent;
                     pendingMFA = false;
+                    addMessage(data.reply, 'ai', true);
                 } else {
                     pendingIntent = null;
                     pendingMFA = false;
+                    addMessage(res.ok ? data.reply : '❌ ' + (data.detail || 'Error'), 'ai');
                 }
             } catch (e) {
                 hideTyping();
