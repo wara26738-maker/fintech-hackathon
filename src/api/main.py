@@ -8,19 +8,14 @@ from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-from ..agent.loop import process_message, confirm_action, verify_otp
+from ..agent.loop import process_message, confirm_action, verify_otp, handle_suggestion, has_pending_suggestion
 from ..db.session import init_db
 
-
-# ═══════════════════════════════════════════
-# LIFESPAN
-# ═══════════════════════════════════════════
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Banking AI Agent API starting...")
     init_db()
-    
     from ..db.session import SessionLocal
     from ..db.models import User
     db = SessionLocal()
@@ -36,15 +31,10 @@ async def lifespan(app: FastAPI):
         print(f"❌ Seed error: {e}")
     finally:
         db.close()
-    
     print("✅ API ready")
     yield
     print("👋 API shutting down...")
 
-
-# ═══════════════════════════════════════════
-# APP
-# ═══════════════════════════════════════════
 
 app = FastAPI(
     title="Banking AI Agent API",
@@ -52,11 +42,6 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
-
-
-# ═══════════════════════════════════════════
-# CORS
-# ═══════════════════════════════════════════
 
 app.add_middleware(
     CORSMiddleware,
@@ -67,25 +52,18 @@ app.add_middleware(
 )
 
 
-# ═══════════════════════════════════════════
-# MODELS
-# ═══════════════════════════════════════════
-
 class ChatRequest(BaseModel):
     message: str
     user_id: int = 1
     session_id: Optional[str] = None
 
-
 class ConfirmRequest(BaseModel):
     intent: Dict[str, Any]
     user_id: int = 1
 
-
 class VerifyOTPRequest(BaseModel):
     user_id: int = 1
     otp: str
-
 
 class ChatResponse(BaseModel):
     reply: str
@@ -95,58 +73,41 @@ class ChatResponse(BaseModel):
     requires_mfa: bool = False
     data: Optional[Any] = None
     intent: Optional[Dict[str, Any]] = None
+    retry_message: Optional[str] = None
 
-
-# ═══════════════════════════════════════════
-# ROUTES
-# ═══════════════════════════════════════════
 
 @app.get("/")
 async def root():
     return HTMLResponse(content=get_chat_html())
 
-
 @app.get("/favicon.ico")
 async def favicon():
     return Response(status_code=204)
 
-
 @app.get("/api/health")
 async def health_check():
-    return {
-        "status": "ok",
-        "version": "1.0.0",
-        "service": "Banking AI Agent"
-    }
+    return {"status": "ok", "version": "1.0.0", "service": "Banking AI Agent"}
 
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
-    
     try:
-        from ..agent.loop import has_pending_suggestion, handle_suggestion
-        
         if has_pending_suggestion(request.user_id):
             answer = request.message.strip().lower()
             if answer in ["yes", "y", "no", "n", "ใช่", "ไม่"]:
                 result = handle_suggestion(request.user_id, answer)
-                
-                # ถ้า yes → retry ด้วยข้อความใหม่
                 if result.get("retry_message"):
                     retry_msg = result["retry_message"]
                     result = process_message(retry_msg, request.user_id)
                     result["reply"] = f"✅ Interpreting as '{retry_msg}'\n\n" + result["reply"]
-                
                 return ChatResponse(**result)
         
-        # ─── Normal process ───
         print(f"🔍 DEBUG: message='{request.message}'")
         response = process_message(request.message, request.user_id)
         print(f"🔍 DEBUG: response={response}")
         return ChatResponse(**response)
-    
     except Exception as e:
         import traceback
         print(f"❌ ERROR: {type(e).__name__}: {e}")
@@ -168,19 +129,13 @@ async def confirm(request: ConfirmRequest):
 @app.post("/api/verify-otp", response_model=ChatResponse)
 async def verify_otp_endpoint(request: VerifyOTPRequest):
     try:
-        print(f"🔍 DEBUG: OTP='{request.otp}'")
         response = verify_otp(request.user_id, request.otp)
-        print(f"🔍 DEBUG: response={response}")
         return ChatResponse(**response)
     except Exception as e:
         import traceback
         print(f"❌ ERROR: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# ═══════════════════════════════════════════
-# WEB CHAT HTML
-# ═══════════════════════════════════════════
 
 def get_chat_html() -> str:
     return """
@@ -216,20 +171,20 @@ def get_chat_html() -> str:
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 1.25rem 1.5rem;
+            padding: 0.625rem 0.875rem;
             display: flex;
             align-items: center;
-            gap: 0.75rem;
+            gap: 0.375rem;
         }
-        .header h1 { font-size: 1.25rem; font-weight: 600; }
+        .header h1 { font-size: 0.9375rem; font-weight: 600; }
         .chat-area {
             flex: 1;
             overflow-y: auto;
-            padding: 1.25rem;
+            padding: 0.375rem;
             background: #f7f8fc;
         }
         .message {
-            margin-bottom: 0.875rem;
+            margin-bottom: 0.25rem;
             display: flex;
             animation: fadeIn 0.3s ease;
         }
@@ -240,11 +195,11 @@ def get_chat_html() -> str:
         .message.user { justify-content: flex-end; }
         .message.ai { justify-content: flex-start; }
         .bubble {
-            max-width: 75%;
-            padding: 0.75rem 1rem;
-            border-radius: 16px;
-            font-size: 0.9375rem;
-            line-height: 1.5;
+            max-width: 85%;
+            padding: 0.25rem 0.5rem;
+            border-radius: 10px;
+            font-size: 0.8125rem;
+            line-height: 1.2;
             white-space: pre-wrap;
             word-wrap: break-word;
         }
@@ -260,42 +215,35 @@ def get_chat_html() -> str:
             box-shadow: 0 1px 3px rgba(0,0,0,0.08);
         }
         .input-area {
-            padding: 1rem 1.25rem;
+            padding: 0.4375rem 0.625rem;
             background: white;
             border-top: 1px solid #eee;
             display: flex;
-            gap: 0.5rem;
+            gap: 0.3125rem;
         }
         input[type="text"] {
             flex: 1;
-            padding: 0.75rem 1rem;
+            padding: 0.4375rem 0.625rem;
             border: 1.5px solid #e0e0e0;
-            border-radius: 24px;
-            font-size: 0.9375rem;
+            border-radius: 20px;
+            font-size: 0.8125rem;
             outline: none;
             transition: border-color 0.2s;
         }
         input[type="text"]:focus { border-color: #667eea; }
-        button {
-            padding: 0.75rem 1.25rem;
+        button.primary {
+            padding: 0.4375rem 0.75rem;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 24px;
-            font-size: 0.9375rem;
+            border-radius: 20px;
+            font-size: 0.8125rem;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.1s;
         }
-        button:hover { transform: scale(1.03); }
-        button:active { transform: scale(0.98); }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .typing {
-            display: inline-block;
-            color: #999;
-            font-size: 0.875rem;
-            padding: 0.5rem 1rem;
-        }
+        button.primary:hover { transform: scale(1.03); }
+        button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .typing { color: #999; font-size: 0.75rem; }
         .typing::after {
             content: '...';
             animation: dots 1.5s steps(4, end) infinite;
@@ -306,28 +254,139 @@ def get_chat_html() -> str:
             60% { content: '..'; }
             80%, 100% { content: '...'; }
         }
+        
+        /* ─── Welcome ─── */
+        .welcome-title {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            line-height: 1.15;
+        }
+        .welcome-subtitle {
+            font-size: 0.6875rem;
+            color: #666;
+            margin: 0;
+            padding: 0;
+            line-height: 1.15;
+        }
+        .feature-group {
+            margin: 0;
+            padding: 0;
+            line-height: 1;
+        }
+        .feature-label {
+            display: block;
+            font-size: 0.5625rem;
+            font-weight: 700;
+            color: #667eea;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            line-height: 1;
+            margin: 0.1875rem 0 0.0625rem 0;
+            padding: 0;
+        }
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.125rem;
+            margin: 0;
+            padding: 0;
+            line-height: 1;
+        }
+        .quick-btn {
+            padding: 0.1875rem 0.375rem;
+            background: #f0f2ff;
+            color: #667eea;
+            border: 1px solid #e0e3ff;
+            border-radius: 8px;
+            font-size: 0.625rem;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+        .quick-btn:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+        .welcome-tip {
+            margin: 0.25rem 0 0 0;
+            padding: 0.25rem 0 0 0;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 0.5625rem;
+            font-style: italic;
+            line-height: 1.2;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <span style="font-size: 1.75rem;">🏦</span>
+            <span style="font-size: 1.125rem;">🏦</span>
             <h1>Banking AI Agent</h1>
         </div>
         <div class="chat-area" id="chat">
             <div class="message ai">
-                <div class="bubble">Hello! 👋 I'm your AI banking assistant.
-
-Try:
-• "Check balance"
-• "Show transactions"
-• "Transfer 500 to Mom" (Yellow: confirm)
-• "Transfer 5,000 to Mom" (Red: OTP)</div>
+                <div class="bubble" style="max-width: 100%; padding: 0.25rem 0.5rem; line-height: 1.15;">
+                    <div class="welcome-title">👋 Hello! I'm your AI banking assistant.</div>
+                    <div class="welcome-subtitle">Click any button to try:</div>
+                    
+                    <div class="feature-group">
+                        <span class="feature-label">💰 Finance</span>
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="quickSend('Check balance')">💵 Balance</button>
+                            <button class="quick-btn" onclick="quickSend('Show accounts')">📋 Accounts</button>
+                            <button class="quick-btn" onclick="quickSend('Show transactions')">📊 Txns</button>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-group">
+                        <span class="feature-label">💸 Transfer</span>
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="quickSend('Transfer 500 to Mom')">✉️ 500→Mom</button>
+                            <button class="quick-btn" onclick="promptTransfer()">💸 Custom</button>
+                            <button class="quick-btn" onclick="quickSend('Show contacts')">👥 Contacts</button>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-group">
+                        <span class="feature-label">🔄 Subs</span>
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="quickSend('What am I paying for')">📺 List</button>
+                            <button class="quick-btn" onclick="quickSend('Cancel Netflix')">❌ Netflix</button>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-group">
+                        <span class="feature-label">💳 Cards</span>
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="quickSend('Show cards')">💳 Show</button>
+                            <button class="quick-btn" onclick="quickSend('Block card')">🔒 Block</button>
+                            <button class="quick-btn" onclick="quickSend('Report card lost')">🚨 Lost</button>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-group">
+                        <span class="feature-label">👤 Profile</span>
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="quickSend('My profile')">👤 Me</button>
+                            <button class="quick-btn" onclick="quickSend('help')">❓ Help</button>
+                        </div>
+                    </div>
+                    
+                    <div class="welcome-tip">
+                        💡 I understand natural language — try any way!
+                    </div>
+                </div>
             </div>
         </div>
         <div class="input-area">
             <input type="text" id="input" placeholder="Type a message..." autofocus>
-            <button id="send" onclick="send()">Send</button>
+            <button class="primary" id="send" onclick="send()">Send</button>
         </div>
     </div>
 
@@ -357,7 +416,7 @@ Try:
             const div = document.createElement('div');
             div.className = 'message ai';
             div.id = 'typing';
-            div.innerHTML = '<div class="bubble"><span class="typing">AI is thinking</span></div>';
+            div.innerHTML = '<div class="bubble"><span class="typing">Thinking</span></div>';
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
         }
@@ -365,6 +424,19 @@ Try:
         function hideTyping() {
             const el = document.getElementById('typing');
             if (el) el.remove();
+        }
+
+        function quickSend(text) {
+            input.value = text;
+            send();
+        }
+
+        function promptTransfer() {
+            const amount = prompt("💸 Enter amount (THB):");
+            if (!amount || isNaN(amount) || parseInt(amount) <= 0) return;
+            const recipient = prompt("👤 Enter recipient (mom/dad/wife):", "mom");
+            if (!recipient) return;
+            quickSend(`Transfer ${amount} to ${recipient}`);
         }
 
         async function send() {
@@ -375,7 +447,6 @@ Try:
             input.value = '';
             sendBtn.disabled = true;
 
-            // ─── Handle OTP input ───
             if (pendingMFA) {
                 try {
                     const res = await fetch('/api/verify-otp', {
@@ -384,14 +455,10 @@ Try:
                         body: JSON.stringify({user_id: 1, otp: text})
                     });
                     const data = await res.json();
-                    if (!res.ok) {
-                        addMessage('❌ ' + (data.detail || 'Error'), 'ai');
-                    } else {
+                    if (!res.ok) addMessage('❌ ' + (data.detail || 'Error'), 'ai');
+                    else {
                         addMessage(data.reply, 'ai');
-                        // ถ้า OTP ถูกต้อง → ไม่ pending อีก
-                        if (!data.requires_mfa) {
-                            pendingMFA = false;
-                        }
+                        if (!data.requires_mfa) pendingMFA = false;
                     }
                 } catch (e) {
                     addMessage('❌ Error: ' + e.message, 'ai');
@@ -402,7 +469,6 @@ Try:
                 return;
             }
 
-            // ─── Handle y/n confirmation ───
             if (pendingIntent && (text.toLowerCase() === 'y' || text.toLowerCase() === 'yes')) {
                 try {
                     const res = await fetch('/api/confirm', {
@@ -411,11 +477,7 @@ Try:
                         body: JSON.stringify({intent: pendingIntent, user_id: 1})
                     });
                     const data = await res.json();
-                    if (!res.ok) {
-                        addMessage('❌ ' + (data.detail || 'Error'), 'ai');
-                    } else {
-                        addMessage(data.reply, 'ai');
-                    }
+                    addMessage(res.ok ? data.reply : '❌ ' + (data.detail || 'Error'), 'ai');
                     pendingIntent = null;
                 } catch (e) {
                     addMessage('❌ Error: ' + e.message, 'ai');
@@ -431,7 +493,6 @@ Try:
 
             showTyping();
 
-            // ─── Send to chat API ───
             try {
                 const res = await fetch('/api/chat', {
                     method: 'POST',
@@ -440,14 +501,8 @@ Try:
                 });
                 const data = await res.json();
                 hideTyping();
-                
-                if (!res.ok) {
-                    addMessage('❌ ' + (data.detail || 'Error'), 'ai');
-                } else {
-                    addMessage(data.reply, 'ai');
-                }
+                addMessage(res.ok ? data.reply : '❌ ' + (data.detail || 'Error'), 'ai');
 
-                // ─── Set pending state ───
                 if (data.requires_mfa) {
                     pendingMFA = true;
                     pendingIntent = null;
@@ -471,10 +526,6 @@ Try:
 </html>
 """
 
-
-# ═══════════════════════════════════════════
-# MAIN
-# ═══════════════════════════════════════════
 
 if __name__ == "__main__":
     import uvicorn
