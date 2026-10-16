@@ -520,7 +520,7 @@ def get_chat_html() -> str:
             
             div.appendChild(bubble);
             
-            // ⭐ User avatar (right) — ต้อง append หลัง bubble
+            // ☀️ User avatar (right) — ต้อง append หลัง bubble
             if (sender === 'user') {
                 const avatar = document.createElement('div');
                 avatar.className = 'user-avatar';

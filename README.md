@@ -66,3 +66,8 @@ cp .env.example .env
 
 # 5. Run the API
 python -m src.api.main
+# 5. (Optional) Initialize the local database
+python scripts/init_db.py
+
+# 6. Run the agent
+python main.py
