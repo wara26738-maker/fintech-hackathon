@@ -1,4 +1,5 @@
 Aura: AI-Powered Banking Agent
+
 Our project introduces an AI-powered banking agent integrated into an existing banking app to make financial management smarter, more accessible, and personalized. It helps users improve financial literacy, manage spending, and make informed decisions through one conversational interface.
 
 Features
@@ -11,8 +12,9 @@ Smart Card Management: for card controls and security
 Subscription Management: to identify declining usage and reduce unnecessary expenses
 Cross-Scenario Orchestration: to coordinate multiple banking tasks in one workflow
 
-AI technologies power the system:
+AI Technologies
 
+AI technologies power the system:
 Large Language Models (LLMs) with Function Calling: to understand requests and execute banking tools
 Retrieval-Augmented Generation (RAG): to provide data-grounded responses
 DAG-Based Task Planner: to organize complex tasks
