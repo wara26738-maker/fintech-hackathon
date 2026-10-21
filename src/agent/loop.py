@@ -1,4 +1,4 @@
-# src/agent/loop.py
+# src/agent/loop.py (Copy ทับได้เลย)
 import random
 from typing import Dict, Any, Optional
 from ..intent.parser import parse_intent
@@ -13,7 +13,6 @@ from ..tools.banking import (
 _pending_otps = {}
 _pending_suggestions = {}
 MAX_OTP_ATTEMPTS = 3
-
 
 def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
     intent = parse_intent(user_input)
@@ -171,10 +170,7 @@ def _execute_action(action: str, params: Dict, user_id: int) -> Dict[str, Any]:
         if action == "get_beneficiaries":
             result = get_beneficiaries(user_id)
             if result["status"] == "success":
-                lines = ["👥 Your contacts:"]
-                for ben in result["data"]:
-                    lines.append(f"  • {ben['nickname']}: {ben['full_name']}")
-                return {"reply": "\n".join(lines), "status": "success", "tier": "green", "data": result["data"]}
+                return {"reply": "👥 Your contacts:", "status": "success", "tier": "green", "data": result["data"]}
             return _error_response(result)
 
         if action == "get_user":
@@ -277,10 +273,20 @@ def _execute_block_card(params: Dict, user_id: int) -> Dict[str, Any]:
         return {"reply": "❌ No cards found", "status": "error", "tier": "yellow"}
     
     card_id = params.get("card_id")
+    card_last4 = params.get("card_last4")
+
     if card_id:
         target = next((c for c in cards if c["id"] == card_id), None)
         if not target:
             return {"reply": f"❌ Card #{card_id} not found", "status": "error", "tier": "yellow"}
+        return {"reply": f"⚠️ Block card {target['card_number']} ({target['card_type']})\nConfirm? [y/n]",
+                "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
+                "intent": {"action": "block_card", "params": {"card_id": target["id"]}}}
+                
+    if card_last4:
+        target = next((c for c in cards if c["card_number"] and card_last4 in c["card_number"]), None)
+        if not target:
+            return {"reply": f"❌ Card ending with {card_last4} not found", "status": "error", "tier": "yellow"}
         return {"reply": f"⚠️ Block card {target['card_number']} ({target['card_type']})\nConfirm? [y/n]",
                 "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
                 "intent": {"action": "block_card", "params": {"card_id": target["id"]}}}
@@ -307,10 +313,20 @@ def _execute_cancel_card(params: Dict, user_id: int) -> Dict[str, Any]:
         return {"reply": "❌ No cards found", "status": "error", "tier": "yellow"}
     
     card_id = params.get("card_id")
+    card_last4 = params.get("card_last4")
+
     if card_id:
         target = next((c for c in cards if c["id"] == card_id), None)
         if not target:
             return {"reply": f"❌ Card #{card_id} not found", "status": "error", "tier": "yellow"}
+        return {"reply": f"⚠️ Cancel card {target['card_number']} ({target['card_type']})?\nConfirm? [y/n]",
+                "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
+                "intent": {"action": "cancel_card", "params": {"card_id": target["id"]}}}
+                
+    if card_last4:
+        target = next((c for c in cards if c["card_number"] and card_last4 in c["card_number"]), None)
+        if not target:
+            return {"reply": f"❌ Card ending with {card_last4} not found", "status": "error", "tier": "yellow"}
         return {"reply": f"⚠️ Cancel card {target['card_number']} ({target['card_type']})?\nConfirm? [y/n]",
                 "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
                 "intent": {"action": "cancel_card", "params": {"card_id": target["id"]}}}
@@ -326,10 +342,6 @@ def _execute_cancel_card(params: Dict, user_id: int) -> Dict[str, Any]:
     
     return {"reply": "\n".join(lines), "status": "success", "tier": "green"}
 
-
-# ═══════════════════════════════════════════
-# HELPERS
-# ═══════════════════════════════════════════
 
 def _error_response(result: Dict) -> Dict[str, Any]:
     return {"reply": f"❌ {result.get('message', 'An error occurred')}", "status": "error", "tier": "green"}

@@ -233,7 +233,7 @@ def get_chat_html() -> str:
             border-collapse: collapse;
             margin-top: 0.5rem;
             font-size: 0.75rem;
-            white-space: normal;
+            white-space: normal; /* รีเซ็ต white-space สำหรับตาราง */
         }
         .data-table th {
             text-align: left;
@@ -433,7 +433,7 @@ def get_chat_html() -> str:
         function renderCardsTable(data) {
             if (!data || !Array.isArray(data) || data.length === 0) return '';
             let html = `<table class="data-table">
-                <thead><tr><th>Card Name</th><th>Card Number</th><th class="right">Status</th></tr></thead><tbody>`;
+                <thead><tr><th>Name</th><th>Card Number</th><th class="right">Status</th></tr></thead><tbody>`;
             data.forEach(c => {
                 const statusClass = c.status === 'active' ? 'status-active' : (c.status === 'blocked' ? 'status-blocked' : 'status-expired');
                 html += `<tr>
@@ -448,14 +448,24 @@ def get_chat_html() -> str:
         function renderSubscriptionsTable(data) {
             if (!data || !Array.isArray(data) || data.length === 0) return '';
             let html = `<table class="data-table">
-                <thead><tr><th>Name</th><th>Amount</th><th class="right">Status</th></tr></thead><tbody>`;
+                <thead><tr><th>Name</th><th>Amount</th></tr></thead><tbody>`;
             data.forEach(s => {
-                const status = s.is_active !== false ? 'Active' : 'Cancelled';
-                const cls = s.is_active !== false ? 'status-active' : 'status-expired';
                 html += `<tr>
                     <td>${s.merchant_name}</td>
                     <td>฿${s.amount}</td>
-                    <td class="right"><span class="status-badge ${cls}">${status}</span></td>
+                </tr>`;
+            });
+            return html + `</tbody></table>`;
+        }
+
+        function renderContactsTable(data) {
+            if (!data || !Array.isArray(data) || data.length === 0) return '';
+            let html = `<table class="data-table">
+                <thead><tr><th>Name</th><th class="right">Tel</th></tr></thead><tbody>`;
+            data.forEach(b => {
+                html += `<tr>
+                    <td>${b.full_name} (${b.nickname})</td>
+                    <td class="right">${b.phone || '-'}</td>
                 </tr>`;
             });
             return html + `</tbody></table>`;
@@ -481,13 +491,16 @@ def get_chat_html() -> str:
                 bubble.appendChild(textNode);
             }
 
-            // ─── ตารางแยกตามประเภท ───
+            // ─── ตรวจสอบประเภทข้อมูลให้แม่นยำ (อิงจาก Field ที่มี) ───
             if (data && Array.isArray(data) && data.length > 0 && sender === 'ai') {
                 let tableHtml = '';
+                
                 if (data[0].card_number !== undefined) {
                     tableHtml = renderCardsTable(data);
                 } else if (data[0].merchant_name !== undefined) {
                     tableHtml = renderSubscriptionsTable(data);
+                } else if (data[0].phone !== undefined && data[0].nickname !== undefined) {
+                    tableHtml = renderContactsTable(data);
                 } else if (data[0].amount !== undefined) {
                     tableHtml = renderTransactionsTable(data);
                 }

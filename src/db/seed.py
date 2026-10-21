@@ -121,7 +121,7 @@ def seed_data():
                 from_account_id=1, to_account_id=3, amount=80,
                 transaction_type=TransactionType.TRANSFER,
                 status=TransactionStatus.COMPLETED,
-                category="transport", note="BTS fare",
+                category="transportation", note="BTS fare",
                 created_at=now - timedelta(days=3)
             ),
             Transaction(
@@ -131,14 +131,24 @@ def seed_data():
                 category="transfer", note="Transfer to Mom",
                 created_at=now - timedelta(days=2)
             ),
+            # เพิ่ม Card
             Transaction(
-                from_account_id=1, to_account_id=4, amount=30000,
-                transaction_type=TransactionType.TRANSFER,
+                from_account_id=1, to_account_id=4, amount=1200,
+                transaction_type=TransactionType.PAYMENT,
                 status=TransactionStatus.COMPLETED,
-                category="transfer", note="Unknown transfer",
+                category="card", note="Card payment",
+                created_at=now - timedelta(hours=12)
+            ),
+            # เพิ่ม Subscription
+            Transaction(
+                from_account_id=1, to_account_id=4, amount=419,
+                transaction_type=TransactionType.PAYMENT,
+                status=TransactionStatus.COMPLETED,
+                category="subscription", note="Netflix",
                 created_at=now - timedelta(hours=6)
             ),
         ]
+        db.add_all(transactions)
         
         db.add_all(transactions)
         db.commit()
