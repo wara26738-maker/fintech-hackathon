@@ -213,6 +213,7 @@ def get_chat_html() -> str:
             font-size: 0.8125rem;
             line-height: 1.4;
             word-wrap: break-word;
+            white-space: pre-wrap;
         }
         .user .bubble {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -226,14 +227,15 @@ def get_chat_html() -> str:
             box-shadow: 0 1px 3px rgba(0,0,0,0.08);
         }
 
-        /* ─── Transaction Table UI ─── */
-        .tx-table {
+        /* ─── Tables UI ─── */
+        .data-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 0.5rem;
             font-size: 0.75rem;
+            white-space: normal;
         }
-        .tx-table th {
+        .data-table th {
             text-align: left;
             padding: 0.375rem 0.25rem;
             border-bottom: 1px solid #eee;
@@ -242,13 +244,14 @@ def get_chat_html() -> str:
             font-size: 0.6875rem;
             text-transform: uppercase;
         }
-        .tx-table th.right { text-align: right; }
-        .tx-table td {
+        .data-table th.right { text-align: right; }
+        .data-table td {
             padding: 0.5rem 0.25rem;
             border-bottom: 1px solid #f9f9f9;
         }
-        .tx-table td.right { text-align: right; font-weight: 600; }
-        .tx-table tr:last-child td { border-bottom: none; }
+        .data-table td.right { text-align: right; font-weight: 600; }
+        .data-table tr:last-child td { border-bottom: none; }
+        
         .tx-category {
             display: inline-block;
             padding: 0.125rem 0.375rem;
@@ -258,6 +261,16 @@ def get_chat_html() -> str:
             font-size: 0.625rem;
             font-weight: 500;
         }
+        .status-badge {
+            display: inline-block;
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+            font-size: 0.625rem;
+            font-weight: 500;
+        }
+        .status-active { background: #dcfce7; color: #16a34a; }
+        .status-blocked { background: #fee2e2; color: #dc2626; }
+        .status-expired { background: #f3f4f6; color: #6b7280; }
 
         .input-area {
             padding: 0.5rem 0.75rem;
@@ -399,34 +412,53 @@ def get_chat_html() -> str:
             if (e.key === 'Enter') send();
         });
 
-        // ─── Function to render Transactions Table ───
+        // ─── Render Functions ───
         function renderTransactionsTable(data) {
             if (!data || !Array.isArray(data) || data.length === 0) return '';
-
-            let html = `<table class="tx-table">
-                <thead>
-                    <tr>
-                        <th>Amount</th>
-                        <th>Category</th>
-                        <th class="right">Recipient/Note</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-
+            let html = `<table class="data-table">
+                <thead><tr><th>Amount</th><th>Category</th><th class="right">Recipient</th></tr></thead><tbody>`;
             data.forEach(tx => {
                 const amount = '฿' + Math.floor(tx.amount).toLocaleString();
                 const category = (tx.category || 'transfer').charAt(0).toUpperCase() + (tx.category || 'transfer').slice(1);
                 const note = tx.note || '-';
-                
                 html += `<tr>
                     <td>${amount}</td>
                     <td><span class="tx-category">${category}</span></td>
                     <td class="right">${note}</td>
                 </tr>`;
             });
+            return html + `</tbody></table>`;
+        }
 
-            html += `</tbody></table>`;
-            return html;
+        function renderCardsTable(data) {
+            if (!data || !Array.isArray(data) || data.length === 0) return '';
+            let html = `<table class="data-table">
+                <thead><tr><th>Card Name</th><th>Card Number</th><th class="right">Status</th></tr></thead><tbody>`;
+            data.forEach(c => {
+                const statusClass = c.status === 'active' ? 'status-active' : (c.status === 'blocked' ? 'status-blocked' : 'status-expired');
+                html += `<tr>
+                    <td>${c.card_type || '-'}</td>
+                    <td>${c.card_number || '-'}</td>
+                    <td class="right"><span class="status-badge ${statusClass}">${c.status}</span></td>
+                </tr>`;
+            });
+            return html + `</tbody></table>`;
+        }
+
+        function renderSubscriptionsTable(data) {
+            if (!data || !Array.isArray(data) || data.length === 0) return '';
+            let html = `<table class="data-table">
+                <thead><tr><th>Name</th><th>Amount</th><th class="right">Status</th></tr></thead><tbody>`;
+            data.forEach(s => {
+                const status = s.is_active !== false ? 'Active' : 'Cancelled';
+                const cls = s.is_active !== false ? 'status-active' : 'status-expired';
+                html += `<tr>
+                    <td>${s.merchant_name}</td>
+                    <td>฿${s.amount}</td>
+                    <td class="right"><span class="status-badge ${cls}">${status}</span></td>
+                </tr>`;
+            });
+            return html + `</tbody></table>`;
         }
 
         function addMessage(text, sender, showConfirmButtons = false, data = null) {
@@ -443,17 +475,23 @@ def get_chat_html() -> str:
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
             
-            // Render Text
             if (text) {
                 const textNode = document.createElement('div');
-                // ถ้าเป็น transaction ให้ตัดส่วน text ที่เป็นตารางข้อความเดิมออก (ถ้ามี)
                 textNode.textContent = text;
                 bubble.appendChild(textNode);
             }
 
-            // Render HTML Table (ถ้ามี data)
-            if (data && Array.isArray(data) && data.length > 0 && (sender === 'ai')) {
-                const tableHtml = renderTransactionsTable(data);
+            // ─── ตารางแยกตามประเภท ───
+            if (data && Array.isArray(data) && data.length > 0 && sender === 'ai') {
+                let tableHtml = '';
+                if (data[0].card_number !== undefined) {
+                    tableHtml = renderCardsTable(data);
+                } else if (data[0].merchant_name !== undefined) {
+                    tableHtml = renderSubscriptionsTable(data);
+                } else if (data[0].amount !== undefined) {
+                    tableHtml = renderTransactionsTable(data);
+                }
+                
                 if (tableHtml) {
                     const tableDiv = document.createElement('div');
                     tableDiv.innerHTML = tableHtml;
@@ -461,29 +499,17 @@ def get_chat_html() -> str:
                 }
             }
             
-            // Render Yes/No buttons
             if (showConfirmButtons) {
                 const btnDiv = document.createElement('div');
                 btnDiv.className = 'confirm-buttons';
-                
                 const yesBtn = document.createElement('button');
                 yesBtn.className = 'confirm-btn confirm-yes';
                 yesBtn.textContent = '✅ Yes';
-                yesBtn.onclick = () => {
-                    btnDiv.remove();
-                    input.value = 'y';
-                    send();
-                };
-                
+                yesBtn.onclick = () => { btnDiv.remove(); input.value = 'y'; send(); };
                 const noBtn = document.createElement('button');
                 noBtn.className = 'confirm-btn confirm-no';
                 noBtn.textContent = '❌ No';
-                noBtn.onclick = () => {
-                    btnDiv.remove();
-                    input.value = 'n';
-                    send();
-                };
-                
+                noBtn.onclick = () => { btnDiv.remove(); input.value = 'n'; send(); };
                 btnDiv.appendChild(yesBtn);
                 btnDiv.appendChild(noBtn);
                 bubble.appendChild(btnDiv);
@@ -506,17 +532,14 @@ def get_chat_html() -> str:
             const div = document.createElement('div');
             div.className = 'message ai';
             div.id = 'typing';
-            
             const avatar = document.createElement('div');
             avatar.className = 'ai-avatar';
             avatar.textContent = '🤖';
             div.appendChild(avatar);
-            
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
             bubble.innerHTML = '<span class="typing">Thinking</span>';
             div.appendChild(bubble);
-            
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
         }
@@ -613,8 +636,6 @@ def get_chat_html() -> str:
                 } else {
                     pendingIntent = null;
                     pendingMFA = false;
-                    
-                    // ⭐ ถ้ามี data ส่งมา (เช่น transactions) ให้แสดงผลเป็นตารางด้วย
                     addMessage(res.ok ? data.reply : '❌ ' + (data.detail || 'Error'), 'ai', false, data.data);
                 }
             } catch (e) {
@@ -629,8 +650,3 @@ def get_chat_html() -> str:
 </body>
 </html>
 """
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)

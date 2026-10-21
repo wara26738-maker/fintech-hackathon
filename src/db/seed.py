@@ -107,7 +107,7 @@ def seed_data():
         db.commit()
         print(f"Added {len(beneficiaries)} beneficiaries")
         
-        # ─── Transactions ───
+                # ─── Transactions ───
         now = datetime.utcnow()
         transactions = [
             Transaction(
@@ -128,17 +128,18 @@ def seed_data():
                 from_account_id=1, to_account_id=3, amount=5000,
                 transaction_type=TransactionType.TRANSFER,
                 status=TransactionStatus.COMPLETED,
-                category="family", note="Transfer to Mom",
+                category="transfer", note="Transfer to Mom",
                 created_at=now - timedelta(days=2)
             ),
             Transaction(
                 from_account_id=1, to_account_id=4, amount=30000,
                 transaction_type=TransactionType.TRANSFER,
                 status=TransactionStatus.COMPLETED,
-                category="unknown", note="Unknown transfer",
+                category="transfer", note="Unknown transfer",
                 created_at=now - timedelta(hours=6)
             ),
         ]
+        
         db.add_all(transactions)
         db.commit()
         print(f"Added {len(transactions)} transactions")
