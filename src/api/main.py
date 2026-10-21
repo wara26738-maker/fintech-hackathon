@@ -112,7 +112,7 @@ async def chat(request: ChatRequest):
         import traceback
         print(f"❌ ERROR: {type(e).__name__}: {e}")
         print(f"❌ TRACEBACK:\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
 
 
 @app.post("/api/confirm", response_model=ChatResponse)
@@ -121,8 +121,6 @@ async def confirm(request: ConfirmRequest):
         response = confirm_action(request.intent, request.user_id)
         return ChatResponse(**response)
     except Exception as e:
-        import traceback
-        print(f"❌ ERROR: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -132,8 +130,6 @@ async def verify_otp_endpoint(request: VerifyOTPRequest):
         response = verify_otp(request.user_id, request.otp)
         return ChatResponse(**response)
     except Exception as e:
-        import traceback
-        print(f"❌ ERROR: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -158,7 +154,7 @@ def get_chat_html() -> str:
         }
         .container {
             width: 100%;
-            max-width: 500px;
+            max-width: 520px;
             background: white;
             border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
@@ -166,25 +162,25 @@ def get_chat_html() -> str:
             display: flex;
             flex-direction: column;
             height: 90vh;
-            max-height: 700px;
+            max-height: 750px;
         }
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 0.625rem 0.875rem;
+            padding: 0.75rem 1rem;
             display: flex;
             align-items: center;
-            gap: 0.375rem;
+            gap: 0.5rem;
         }
-        .header h1 { font-size: 0.9375rem; font-weight: 600; }
+        .header h1 { font-size: 1rem; font-weight: 600; }
         .chat-area {
             flex: 1;
             overflow-y: auto;
-            padding: 0.375rem;
+            padding: 0.5rem;
             background: #f7f8fc;
         }
         .message {
-            margin-bottom: 0.3125rem;
+            margin-bottom: 0.5rem;
             display: flex;
             animation: fadeIn 0.3s ease;
         }
@@ -192,21 +188,13 @@ def get_chat_html() -> str:
             from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .message.user { 
-            justify-content: flex-end;
-            align-items: flex-start;
-            gap: 0.375rem;
-        }
-        .message.ai { 
-            justify-content: flex-start;
-            align-items: flex-start;
-            gap: 0.375rem;
-        }
-        .ai-avatar {
-            width: 1.5rem;
-            height: 1.5rem;
+        .message.user { justify-content: flex-end; align-items: flex-start; gap: 0.375rem; }
+        .message.ai { justify-content: flex-start; align-items: flex-start; gap: 0.375rem; }
+        
+        .ai-avatar, .user-avatar {
+            width: 1.75rem;
+            height: 1.75rem;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -215,26 +203,15 @@ def get_chat_html() -> str:
             box-shadow: 0 1px 3px rgba(0,0,0,0.15);
             line-height: 1;
         }
-        .user-avatar {
-            width: 1.5rem;
-            height: 1.5rem;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.875rem;
-            flex-shrink: 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-            line-height: 1;
-        }
+        .ai-avatar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .user-avatar { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+
         .bubble {
             max-width: 85%;
-            padding: 0.3125rem 0.5rem;
-            border-radius: 10px;
+            padding: 0.5rem 0.75rem;
+            border-radius: 12px;
             font-size: 0.8125rem;
-            line-height: 1.2;
-            white-space: pre-wrap;
+            line-height: 1.4;
             word-wrap: break-word;
         }
         .user .bubble {
@@ -248,16 +225,50 @@ def get_chat_html() -> str:
             border-bottom-left-radius: 4px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.08);
         }
+
+        /* ─── Transaction Table UI ─── */
+        .tx-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+        }
+        .tx-table th {
+            text-align: left;
+            padding: 0.375rem 0.25rem;
+            border-bottom: 1px solid #eee;
+            color: #666;
+            font-weight: 600;
+            font-size: 0.6875rem;
+            text-transform: uppercase;
+        }
+        .tx-table th.right { text-align: right; }
+        .tx-table td {
+            padding: 0.5rem 0.25rem;
+            border-bottom: 1px solid #f9f9f9;
+        }
+        .tx-table td.right { text-align: right; font-weight: 600; }
+        .tx-table tr:last-child td { border-bottom: none; }
+        .tx-category {
+            display: inline-block;
+            padding: 0.125rem 0.375rem;
+            background: #f0f2ff;
+            color: #667eea;
+            border-radius: 4px;
+            font-size: 0.625rem;
+            font-weight: 500;
+        }
+
         .input-area {
-            padding: 0.4375rem 0.625rem;
+            padding: 0.5rem 0.75rem;
             background: white;
             border-top: 1px solid #eee;
             display: flex;
-            gap: 0.3125rem;
+            gap: 0.375rem;
         }
         input[type="text"] {
             flex: 1;
-            padding: 0.4375rem 0.625rem;
+            padding: 0.5rem 0.75rem;
             border: 1.5px solid #e0e0e0;
             border-radius: 20px;
             font-size: 0.8125rem;
@@ -266,7 +277,7 @@ def get_chat_html() -> str:
         }
         input[type="text"]:focus { border-color: #667eea; }
         button.primary {
-            padding: 0.4375rem 0.75rem;
+            padding: 0.5rem 0.875rem;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
@@ -277,6 +288,7 @@ def get_chat_html() -> str:
         }
         button.primary:hover { transform: scale(1.03); }
         button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        
         .typing { color: #999; font-size: 0.75rem; }
         .typing::after {
             content: '...';
@@ -288,106 +300,32 @@ def get_chat_html() -> str:
             60% { content: '..'; }
             80%, 100% { content: '...'; }
         }
-        
+
         /* ─── Confirm Buttons ─── */
-        .confirm-buttons {
-            display: flex;
-            gap: 0.375rem;
-            margin-top: 0.375rem;
-        }
+        .confirm-buttons { display: flex; gap: 0.375rem; margin-top: 0.5rem; }
         .confirm-btn {
-            padding: 0.3125rem 0.625rem;
-            border: none;
-            border-radius: 6px;
-            font-size: 0.6875rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s;
-            flex: 1;
+            padding: 0.375rem 0.625rem; border: none; border-radius: 6px;
+            font-size: 0.6875rem; font-weight: 600; cursor: pointer;
+            transition: all 0.15s; flex: 1;
         }
-        .confirm-yes {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-        }
-        .confirm-yes:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 3px 8px rgba(16,185,129,0.3);
-        }
-        .confirm-no {
-            background: #f3f4f6;
-            color: #6b7280;
-            border: 1px solid #e5e7eb;
-        }
-        .confirm-no:hover {
-            background: #e5e7eb;
-        }
-        
+        .confirm-yes { background: #10b981; color: white; }
+        .confirm-yes:hover { background: #059669; transform: translateY(-1px); }
+        .confirm-no { background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb; }
+        .confirm-no:hover { background: #e5e7eb; }
+
         /* ─── Welcome ─── */
-        .welcome-title {
-            font-size: 0.8125rem;
-            font-weight: 600;
-            color: #333;
-            margin: 0;
-            padding: 0;
-            line-height: 1.15;
-        }
-        .welcome-subtitle {
-            font-size: 0.6875rem;
-            color: #666;
-            margin: 0;
-            padding: 0;
-            line-height: 1.15;
-        }
-        .feature-group {
-            margin: 0;
-            padding: 0;
-            line-height: 1;
-        }
-        .feature-label {
-            display: block;
-            font-size: 0.5625rem;
-            font-weight: 700;
-            color: #667eea;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-            line-height: 1;
-            margin: 0.1875rem 0 0.0625rem 0;
-            padding: 0;
-        }
-        .quick-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.125rem;
-            margin: 0;
-            padding: 0;
-            line-height: 1;
-        }
+        .welcome-title { font-size: 0.8125rem; font-weight: 600; color: #333; margin-bottom: 0.125rem; }
+        .welcome-subtitle { font-size: 0.6875rem; color: #666; margin-bottom: 0.5rem; }
+        .feature-group { margin-bottom: 0.375rem; }
+        .feature-label { display: block; font-size: 0.5625rem; font-weight: 700; color: #667eea; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 0.1875rem; }
+        .quick-actions { display: flex; flex-wrap: wrap; gap: 0.1875rem; }
         .quick-btn {
-            padding: 0.1875rem 0.375rem;
-            background: #f0f2ff;
-            color: #667eea;
-            border: 1px solid #e0e3ff;
-            border-radius: 8px;
-            font-size: 0.625rem;
-            font-weight: 500;
-            cursor: pointer;
-            white-space: nowrap;
-            line-height: 1.2;
+            padding: 0.1875rem 0.375rem; background: #f0f2ff; color: #667eea;
+            border: 1px solid #e0e3ff; border-radius: 8px; font-size: 0.625rem;
+            font-weight: 500; cursor: pointer; white-space: nowrap;
         }
-        .quick-btn:hover {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: transparent;
-        }
-        .welcome-tip {
-            margin: 0.25rem 0 0 0;
-            padding: 0.25rem 0 0 0;
-            border-top: 1px solid #eee;
-            color: #666;
-            font-size: 0.5625rem;
-            font-style: italic;
-            line-height: 1.2;
-        }
+        .quick-btn:hover { background: #667eea; color: white; }
+        .welcome-tip { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #eee; color: #666; font-size: 0.5625rem; font-style: italic; }
     </style>
 </head>
 <body>
@@ -399,7 +337,7 @@ def get_chat_html() -> str:
         <div class="chat-area" id="chat">
             <div class="message ai">
                 <div class="ai-avatar">🤖</div>
-                <div class="bubble" style="max-width: 100%; padding: 0.25rem 0.5rem; line-height: 1.15;">
+                <div class="bubble" style="max-width: 100%;">
                     <div class="welcome-title">👋 Hello! I'm your AI banking assistant.</div>
                     <div class="welcome-subtitle">Click any button to try:</div>
                     
@@ -438,14 +376,6 @@ def get_chat_html() -> str:
                         </div>
                     </div>
                     
-                    <div class="feature-group">
-                        <span class="feature-label">👤 Profile</span>
-                        <div class="quick-actions">
-                            <button class="quick-btn" onclick="quickSend('My profile')">👤 Me</button>
-                            <button class="quick-btn" onclick="quickSend('help')">❓ Help</button>
-                        </div>
-                    </div>
-                    
                     <div class="welcome-tip">
                         💡 I understand natural language — try any way!
                     </div>
@@ -469,11 +399,40 @@ def get_chat_html() -> str:
             if (e.key === 'Enter') send();
         });
 
-        function addMessage(text, sender, showConfirmButtons = false) {
+        // ─── Function to render Transactions Table ───
+        function renderTransactionsTable(data) {
+            if (!data || !Array.isArray(data) || data.length === 0) return '';
+
+            let html = `<table class="tx-table">
+                <thead>
+                    <tr>
+                        <th>Amount</th>
+                        <th>Category</th>
+                        <th class="right">Recipient/Note</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            data.forEach(tx => {
+                const amount = '฿' + Math.floor(tx.amount).toLocaleString();
+                const category = (tx.category || 'transfer').charAt(0).toUpperCase() + (tx.category || 'transfer').slice(1);
+                const note = tx.note || '-';
+                
+                html += `<tr>
+                    <td>${amount}</td>
+                    <td><span class="tx-category">${category}</span></td>
+                    <td class="right">${note}</td>
+                </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            return html;
+        }
+
+        function addMessage(text, sender, showConfirmButtons = false, data = null) {
             const div = document.createElement('div');
             div.className = `message ${sender}`;
             
-            // AI avatar (left)
             if (sender === 'ai') {
                 const avatar = document.createElement('div');
                 avatar.className = 'ai-avatar';
@@ -484,13 +443,25 @@ def get_chat_html() -> str:
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
             
+            // Render Text
             if (text) {
                 const textNode = document.createElement('div');
+                // ถ้าเป็น transaction ให้ตัดส่วน text ที่เป็นตารางข้อความเดิมออก (ถ้ามี)
                 textNode.textContent = text;
                 bubble.appendChild(textNode);
             }
+
+            // Render HTML Table (ถ้ามี data)
+            if (data && Array.isArray(data) && data.length > 0 && (sender === 'ai')) {
+                const tableHtml = renderTransactionsTable(data);
+                if (tableHtml) {
+                    const tableDiv = document.createElement('div');
+                    tableDiv.innerHTML = tableHtml;
+                    bubble.appendChild(tableDiv);
+                }
+            }
             
-            // ปุ่ม Yes/No
+            // Render Yes/No buttons
             if (showConfirmButtons) {
                 const btnDiv = document.createElement('div');
                 btnDiv.className = 'confirm-buttons';
@@ -520,13 +491,11 @@ def get_chat_html() -> str:
             
             div.appendChild(bubble);
             
-            // ☀️ User avatar (right) — ต้อง append หลัง bubble
             if (sender === 'user') {
                 const avatar = document.createElement('div');
                 avatar.className = 'user-avatar';
                 avatar.textContent = '🧔🏻‍♂️';
                 div.appendChild(avatar);
-                console.log('User avatar added:', avatar);
             }
             
             chat.appendChild(div);
@@ -588,7 +557,7 @@ def get_chat_html() -> str:
                     const data = await res.json();
                     if (!res.ok) addMessage('❌ ' + (data.detail || 'Error'), 'ai');
                     else {
-                        addMessage(data.reply, 'ai');
+                        addMessage(data.reply, 'ai', false, data.data);
                         if (!data.requires_mfa) pendingMFA = false;
                     }
                 } catch (e) {
@@ -644,7 +613,9 @@ def get_chat_html() -> str:
                 } else {
                     pendingIntent = null;
                     pendingMFA = false;
-                    addMessage(res.ok ? data.reply : '❌ ' + (data.detail || 'Error'), 'ai');
+                    
+                    // ⭐ ถ้ามี data ส่งมา (เช่น transactions) ให้แสดงผลเป็นตารางด้วย
+                    addMessage(res.ok ? data.reply : '❌ ' + (data.detail || 'Error'), 'ai', false, data.data);
                 }
             } catch (e) {
                 hideTyping();
