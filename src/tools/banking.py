@@ -195,7 +195,7 @@ def block_card(card_id: int) -> Dict[str, Any]:
     # Keep digits only, so "1234 5678 9012" or "1234-5678-9012" also work
     digits = re.sub(r"\D", "", str(card_id))
     if len(digits) != 16:
-        return {"status": "error", "message": "Please enter 12 digits of the card number"}
+        return {"status": "error", "message": "Please enter 16 digits of the card number"}
 
     db = SessionLocal()
     try:
@@ -229,7 +229,7 @@ def unblock_card(card_id: int) -> Dict[str, Any]:
     # Keep digits only, so "1234 5678 9012" or "1234-5678-9012" also work
     digits = re.sub(r"\D", "", str(card_id))
     if len(digits) != 16:
-        return {"status": "error", "message": "Please enter 12 digits of the card number"}
+        return {"status": "error", "message": "Please enter 16 digits of the card number"}
 
     db = SessionLocal()
     try:
