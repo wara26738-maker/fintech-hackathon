@@ -49,10 +49,9 @@ GREEN_ACTIONS = {
 YELLOW_ACTIONS = {
     "cancel_subscription",
     "apply_virtual_card",
-    "update_note",
-    "block_card",
+    "update_note"
 }
-
+#------------------------------------------------
 # Actions ที่เป็น Red (ต้อง MFA)
 RED_ACTIONS = {
     "report_card_lost",
@@ -60,8 +59,9 @@ RED_ACTIONS = {
     "subscribe_investment",
     "close_account",
     "unblock_card",
+    "block_card"
 }
-
+#------------------------------------------------
 
 # ═══════════════════════════════════════════
 # MAIN FUNCTION: CHECK TIER

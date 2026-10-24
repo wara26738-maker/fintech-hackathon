@@ -1,6 +1,6 @@
 # src/tools/banking.py
 # Mock Banking Tools
-
+import re
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from ..db.session import SessionLocal
@@ -190,12 +190,22 @@ def get_card_by_id(card_id: int) -> Dict[str, Any]:
     finally:
         db.close()
 
-
+#--------------------------------------------------------------------------------------------
 def block_card(card_id: int) -> Dict[str, Any]:
+    # Keep digits only, so "1234 5678 9012" or "1234-5678-9012" also work
+    digits = re.sub(r"\D", "", str(card_id))
+    if len(digits) != 16:
+        return {"status": "error", "message": "Please enter 12 digits of the card number"}
+
     db = SessionLocal()
     try:
-        card = db.query(Card).filter(Card.id == card_id).first()
-        if not card: return {"status": "error", "message": "Card not found"}
+        query = db.query(Card).filter(Card.card_id == digits)
+        if card_id is not None:  # only match cards owned by the logged-in user
+            query = query.filter(Card.card_number == card_id)
+        card = query.first()
+
+        if not card:
+            return {"status": "error", "message": "Card not found"}
         if card.status == CardStatus.BLOCKED:
             return {"status": "error", "message": "Card already blocked"}
 
@@ -203,8 +213,9 @@ def block_card(card_id: int) -> Dict[str, Any]:
         db.commit()
         return {"status": "success", "data": {
             "card_id": card.id,
-            "card_number": f"****-****-****-{card.card_number[-4:]}" if card.card_number else "****",
-            "status": "blocked", "message": "Card blocked successfully"
+            "card_number": f"****-****-{card.card_number[-4:]}",
+            "status": "blocked",
+            "message": "Card blocked successfully"
         }}
     except Exception as e:
         db.rollback()
@@ -212,6 +223,40 @@ def block_card(card_id: int) -> Dict[str, Any]:
     finally:
         db.close()
 
+#--------------------------------------------------------------------------------------------
+
+def unblock_card(card_id: int) -> Dict[str, Any]:
+    # Keep digits only, so "1234 5678 9012" or "1234-5678-9012" also work
+    digits = re.sub(r"\D", "", str(card_id))
+    if len(digits) != 16:
+        return {"status": "error", "message": "Please enter 12 digits of the card number"}
+
+    db = SessionLocal()
+    try:
+        query = db.query(Card).filter(Card.card_number == digits)
+        if card_id is not None:  # only match cards owned by the logged-in user
+            query = query.filter(Card.card_number == card_id)
+        card = query.first()
+
+        if not card:
+            return {"status": "error", "message": "Card not found"}
+        if card.status != CardStatus.BLOCKED:
+            return {"status": "error", "message": "Card is not blocked"}
+
+        card.status = CardStatus.ACTIVE
+        db.commit()
+        return {"status": "success", "data": {
+            "card_id": card.id,
+            "card_number": f"****-****-{card.card_number[-4:]}",
+            "status": "active",
+            "message": "Card unblocked successfully"
+        }}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
+#--------------------------------------------------------------------------------------------
 
 def cancel_card(card_id: int) -> Dict[str, Any]:
     """Cancel (permanently deactivate) a card"""
