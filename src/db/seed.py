@@ -28,17 +28,17 @@ def seed_data():
         users = [
             User(
                 id=1,
-                full_name="Somchai Jaidee",
+                full_name="Sarah",
                 phone="0812345678",
-                email="somchai@example.com",
+                email="sarah@gmail.com",
                 national_id="1234567890123",
                 date_of_birth=datetime(1990, 5, 15)
             ),
             User(
                 id=2,
-                full_name="Somsri Rakrian",
+                full_name="Sarah",
                 phone="0823456789",
-                email="somsri@example.com",
+                email="sarah@hotmail.com",
                 national_id="2345678901234",
                 date_of_birth=datetime(1992, 8, 20)
             ),
