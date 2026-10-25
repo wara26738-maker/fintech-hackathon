@@ -11,6 +11,26 @@ from ..db.models import (
     TransactionType, TransactionStatus, CardStatus
 )
 
+#----------------------------------------------------------------------------------------------------------------------------
+def clean_card_number(card_number: str) -> Optional[str]: #check card(will be called in card action)
+    """Return only the digits if the number has the right length, else None."""
+    digits = re.sub(r"\D", "", str(card_number))
+    if len(digits) != 16:
+        return None
+    return digits
+#----------------------------------------------------------------------------------------------------------------------------
+def find_card(db, digits: str, user_id: Optional[int] = None):
+    """Return the matching Card, or None if there isn't one."""
+    query = db.query(Card)
+    if user_id is not None:  # only search this user's cards
+        query = query.filter(Card.user_id == user_id)
+
+    for c in query.all():
+        if c.card_number and re.sub(r"\D", "", c.card_number) == digits:
+            return c
+    return None
+#----------------------------------------------------------------------------------------------------------------------------
+
 def get_user(user_id: int) -> Dict[str, Any]:
     db = SessionLocal()
     try:
@@ -183,22 +203,15 @@ def get_cards(user_id: int) -> Dict[str, Any]:
     finally:
         db.close()
 
-
-def block_card(card_number: str) -> Dict[str, Any]:
-    digits = re.sub(r"\D", "", str(card_number))
-    if len(digits) != 16:
-        return {"status": "error", "message": "Please enter 16 digits of the card number"}
+#-------------------------------------------------------------------แก้ block กับ unblock card ให้เป็นการเรียนฟังชั่น clean_card_number และ find_card เพื่อให้สามารถใช้ได้ทั้ง card_number และ card_id
+def block_card(card_number: str, user_id: Optional[int] = None) -> Dict[str, Any]:
+    digits = clean_card_number(card_number)
+    if digits is None:
+        return {"status": "error", "message": f"Please enter all {16} digits of the card number"}
 
     db = SessionLocal()
     try:
-        cards = db.query(Card).all()
-        card = None
-        for c in cards:
-            if c.card_number:
-                db_digits = re.sub(r"\D", "", c.card_number)
-                if db_digits == digits:
-                    card = c
-                    break
+        card = find_card(db, digits, user_id)
 
         if not card:
             return {"status": "error", "message": "Card not found"}
@@ -209,7 +222,7 @@ def block_card(card_number: str) -> Dict[str, Any]:
         db.commit()
         return {"status": "success", "data": {
             "card_id": card.id,
-            "card_number": f"****-****-{card.card_number[-4:]}",
+            "card_number": f"****-****-****-{digits[-4:]}",
             "status": "blocked",
             "message": "Card blocked successfully"
         }}
@@ -219,22 +232,16 @@ def block_card(card_number: str) -> Dict[str, Any]:
     finally:
         db.close()
 
+#-------------------------------------------------------------------------------------------------------------------
 
-def unblock_card(card_number: str) -> Dict[str, Any]:
-    digits = re.sub(r"\D", "", str(card_number))
-    if len(digits) != 16:
-        return {"status": "error", "message": "Please enter 16 digits of the card number"}
+def unblock_card(card_number: str, user_id: Optional[int] = None) -> Dict[str, Any]:
+    digits = clean_card_number(card_number)
+    if digits is None:
+        return {"status": "error", "message": f"Please enter all {16} digits of the card number"}
 
     db = SessionLocal()
     try:
-        cards = db.query(Card).all()
-        card = None
-        for c in cards:
-            if c.card_number:
-                db_digits = re.sub(r"\D", "", c.card_number)
-                if db_digits == digits:
-                    card = c
-                    break
+        card = find_card(db, digits, user_id)
 
         if not card:
             return {"status": "error", "message": "Card not found"}
@@ -245,7 +252,7 @@ def unblock_card(card_number: str) -> Dict[str, Any]:
         db.commit()
         return {"status": "success", "data": {
             "card_id": card.id,
-            "card_number": f"****-****-{card.card_number[-4:]}",
+            "card_number": f"****-****-****-{digits[-4:]}",
             "status": "active",
             "message": "Card unblocked successfully"
         }}
@@ -254,7 +261,7 @@ def unblock_card(card_number: str) -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
     finally:
         db.close()
-
+#---------------------------------------------------------------------------------------------------------------------
 
 def cancel_card(card_id: int) -> Dict[str, Any]:
     db = SessionLocal()
