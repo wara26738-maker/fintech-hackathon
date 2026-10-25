@@ -10,7 +10,7 @@ load_dotenv()
 
 SYSTEM_PROMPT = """You are an intent parser for a banking AI agent.
 Convert user messages (Thai or English) into JSON.
-Available actions: get_balance, get_accounts, get_transactions, get_cards, get_subscriptions, get_beneficiaries, transfer, cancel_subscription, block_card, cancel_card, report_card_lost, get_user, help, unknown
+Available actions: get_balance, get_accounts, get_transactions, get_cards, get_subscriptions, get_beneficiaries, transfer, cancel_subscription, block_card, unblock_card, cancel_card, report_card_lost, get_user, help, unknown
 Output JSON: {"action": "...", "params": {...}, "confidence": 0.0-1.0}
 """
 
@@ -23,6 +23,7 @@ KEYWORDS = {
     "beneficiaries": ["beneficiaries", "beneficiary", "contacts", "contact", "ผู้รับโอน", "รายชื่อ"],
     "help": ["help", "helps", "ช่วย"],
     "block": ["block", "blok", "บล็อก", "อายัด"],
+    "unblock": ["unblock", "unblok", "ปลดบล็อก", "ปลดอายัด"],
     "cancel": ["cancel", "ยกเลิก"],
 }
 
@@ -43,13 +44,6 @@ def find_similar_word(text: str) -> Optional[str]:
     return best_match
 
 
-def _extract_card_id(text_lower: str) -> Optional[int]:
-    m = re.search(r'card\s+(\d+)|บัตร\s+(\d+)', text_lower)
-    if m:
-        return int(m.group(1) or m.group(2))
-    return None
-
-
 def parse_with_mock(text: str) -> Dict[str, Any]:
     text_lower = text.lower().strip()
 
@@ -57,6 +51,12 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
     amount = None
     if amount_match:
         amount = int(amount_match.group(1).replace(',', ''))
+
+    # ⭐ จับเฉพาะตัวเลข 16 หลัก (มองข้ามขีดกลาง/เว้นวรรค)
+    card_match = re.search(r'(\d(?:[-\s]?\d){15})', text)
+    
+    # ⭐ จับ ID บัตร กรณีพิมพ์ "cancel card 1" (ตัวเลข 1 หลัก)
+    card_id_match = re.search(r'(?:card|บัตร)\s+(\d+)', text_lower)
 
     if any(k in text_lower for k in ["ยอดเงิน", "บาลาน", "balance", "เหลือเท่าไหร่", "มีเงินเท่าไหร่", "balan"]):
         return {"action": "get_balance", "params": {}, "confidence": 0.9}
@@ -73,15 +73,26 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
     if any(k in text_lower for k in ["contact", "contacts", "ผู้รับโอน", "beneficiary", "beneficiaries", "รายชื่อ", "คนที่โอนด้วย"]):
         return {"action": "get_beneficiaries", "params": {}, "confidence": 0.9}
 
-    # ─── Cancel Card ───
+    # ⭐⭐⭐ สำคัญมาก: ต้องเช็ค Cancel Card ก่อน Cancel Subscription เสมอ ⭐⭐⭐
     if re.search(r'cancel.*card|card.*cancel|ยกเลิก.*บัตร|บัตร.*ยกเลิก', text_lower):
         params = {}
-        cid = _extract_card_id(text_lower)
-        if cid: params["card_id"] = cid
-        last4 = re.search(r'(?<!\d)(\d{16})(?!\d)', text_lower) #<--------------------------------------change here to match 16 digits not preceded or followed by another digit
-        if last4 and not cid:
-            params["card_last4"] = last4.group(1)
+        if card_match: 
+            params["card_number"] = card_match.group(1)
+        elif card_id_match:
+            params["card_id"] = int(card_id_match.group(1))
         return {"action": "cancel_card", "params": params, "confidence": 0.85}
+
+    # ─── Unblock Card ───
+    if re.search(r'unblock|unblok|ปลดบล็อก|ปลดอายัด', text_lower):
+        params = {}
+        if card_match: params["card_number"] = card_match.group(1)
+        return {"action": "unblock_card", "params": params, "confidence": 0.85}
+
+    # ─── Block Card ───
+    if re.search(r'block|blok|บล็อก|อายัด', text_lower):
+        params = {}
+        if card_match: params["card_number"] = card_match.group(1)
+        return {"action": "block_card", "params": params, "confidence": 0.85}
 
     # ─── Cancel Subscription ───
     if any(k in text_lower for k in ["ยกเลิก", "cancel"]):
@@ -90,28 +101,6 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
             if m in text_lower:
                 return {"action": "cancel_subscription", "params": {"merchant_name": m.capitalize()}, "confidence": 0.85}
         return {"action": "cancel_subscription", "params": {}, "confidence": 0.7}
-
-    # ─── Block Card ───
-    if re.search(r'block|blok|บล็อก|อายัด', text_lower):
-        params = {}
-        cid = _extract_card_id(text_lower)
-        if cid: params["card_id"] = cid
-        last4 = re.search(r'(?<!\d)(\d{16})(?!\d)', text_lower) #<--------------------------------------change here to match 16 digits not preceded or followed by another digit
-        if last4 and not cid:
-            params["card_last4"] = last4.group(1)
-        return {"action": "block_card", "params": params, "confidence": 0.85}
-
-    #-------------------------------------------------------------------------add unblock card----------------------------------------------------------------------------
-    # ─── Unblock Card ───
-    if re.search(r'unblock|unblok', text_lower):
-        params = {}
-        cid = _extract_card_id(text_lower)
-        if cid: params["card_id"] = cid
-        last4 = re.search(r'(?<!\d)(\d{16})(?!\d)', text_lower) #<--------------------------------------change here to match 16 digits not preceded or followed by another digit
-        if last4 and not cid:
-            params["card_last4"] = last4.group(1)
-        return {"action": "unblock_card", "params": params, "confidence": 0.85}
-    #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     # ─── Report Card Lost ───
     if any(k in text_lower for k in ["บัตรหาย", "card lost", "lost card", "lost"]):

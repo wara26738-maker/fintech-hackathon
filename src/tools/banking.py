@@ -1,5 +1,6 @@
 # src/tools/banking.py
 # Mock Banking Tools
+
 import re
 from datetime import datetime
 from typing import Optional, List, Dict, Any
@@ -9,7 +10,6 @@ from ..db.models import (
     Subscription, Beneficiary,
     TransactionType, TransactionStatus, CardStatus
 )
-
 
 def get_user(user_id: int) -> Dict[str, Any]:
     db = SessionLocal()
@@ -139,12 +139,22 @@ def get_subscriptions(user_id: int) -> Dict[str, Any]:
         db.close()
 
 
-def cancel_subscription(subscription_id: int) -> Dict[str, Any]:
+def cancel_subscription(subscription_id: int = None, merchant_name: str = None) -> Dict[str, Any]:
     db = SessionLocal()
     try:
-        sub = db.query(Subscription).filter(Subscription.id == subscription_id).first()
+        if subscription_id:
+            sub = db.query(Subscription).filter(Subscription.id == subscription_id).first()
+        elif merchant_name:
+            # ⭐ ค้นหาด้วยชื่อร้าน (ILIKE ช่วยให้ค้นหาไม่สนตัวพิมพ์เล็ก-ใหญ่)
+            sub = db.query(Subscription).filter(
+                Subscription.merchant_name.ilike(f"%{merchant_name}%")
+            ).first()
+        else:
+            return {"status": "error", "message": "No subscription ID or name provided"}
+
         if not sub: return {"status": "error", "message": "Subscription not found"}
         if not sub.is_active: return {"status": "error", "message": "Subscription already cancelled"}
+        
         sub.is_active = False
         db.commit()
         return {"status": "success", "data": {
@@ -174,35 +184,21 @@ def get_cards(user_id: int) -> Dict[str, Any]:
         db.close()
 
 
-def get_card_by_id(card_id: int) -> Dict[str, Any]:
-    db = SessionLocal()
-    try:
-        card = db.query(Card).filter(Card.id == card_id).first()
-        if not card:
-            return {"status": "error", "message": "Card not found"}
-        return {"status": "success", "data": {
-            "id": card.id,
-            "card_number": f"****-****-****-{card.card_number[-4:]}" if card.card_number else "****",
-            "card_type": card.card_type.value if card.card_type else None,
-            "status": card.status.value if card.status else None,
-            "daily_limit": float(card.daily_limit) if card.daily_limit else None
-        }}
-    finally:
-        db.close()
-
-#--------------------------------------------------------------------------------------------
-def block_card(card_id: int) -> Dict[str, Any]:
-    # Keep digits only, so "1234 5678 9012" or "1234-5678-9012" also work
-    digits = re.sub(r"\D", "", str(card_id))
+def block_card(card_number: str) -> Dict[str, Any]:
+    digits = re.sub(r"\D", "", str(card_number))
     if len(digits) != 16:
         return {"status": "error", "message": "Please enter 16 digits of the card number"}
 
     db = SessionLocal()
     try:
-        query = db.query(Card).filter(Card.card_id == digits)
-        if card_id is not None:  # only match cards owned by the logged-in user
-            query = query.filter(Card.card_number == card_id)
-        card = query.first()
+        cards = db.query(Card).all()
+        card = None
+        for c in cards:
+            if c.card_number:
+                db_digits = re.sub(r"\D", "", c.card_number)
+                if db_digits == digits:
+                    card = c
+                    break
 
         if not card:
             return {"status": "error", "message": "Card not found"}
@@ -223,20 +219,22 @@ def block_card(card_id: int) -> Dict[str, Any]:
     finally:
         db.close()
 
-#--------------------------------------------------------------------------------------------
 
-def unblock_card(card_id: int) -> Dict[str, Any]:
-    # Keep digits only, so "1234 5678 9012" or "1234-5678-9012" also work
-    digits = re.sub(r"\D", "", str(card_id))
+def unblock_card(card_number: str) -> Dict[str, Any]:
+    digits = re.sub(r"\D", "", str(card_number))
     if len(digits) != 16:
         return {"status": "error", "message": "Please enter 16 digits of the card number"}
 
     db = SessionLocal()
     try:
-        query = db.query(Card).filter(Card.card_number == digits)
-        if card_id is not None:  # only match cards owned by the logged-in user
-            query = query.filter(Card.card_number == card_id)
-        card = query.first()
+        cards = db.query(Card).all()
+        card = None
+        for c in cards:
+            if c.card_number:
+                db_digits = re.sub(r"\D", "", c.card_number)
+                if db_digits == digits:
+                    card = c
+                    break
 
         if not card:
             return {"status": "error", "message": "Card not found"}
@@ -256,10 +254,9 @@ def unblock_card(card_id: int) -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
     finally:
         db.close()
-#--------------------------------------------------------------------------------------------
+
 
 def cancel_card(card_id: int) -> Dict[str, Any]:
-    """Cancel (permanently deactivate) a card"""
     db = SessionLocal()
     try:
         card = db.query(Card).filter(Card.id == card_id).first()

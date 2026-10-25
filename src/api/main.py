@@ -233,7 +233,7 @@ def get_chat_html() -> str:
             border-collapse: collapse;
             margin-top: 0.5rem;
             font-size: 0.75rem;
-            white-space: normal; /* รีเซ็ต white-space สำหรับตาราง */
+            white-space: normal;
         }
         .data-table th {
             text-align: left;
@@ -491,10 +491,8 @@ def get_chat_html() -> str:
                 bubble.appendChild(textNode);
             }
 
-            // ─── ตรวจสอบประเภทข้อมูลให้แม่นยำ (อิงจาก Field ที่มี) ───
             if (data && Array.isArray(data) && data.length > 0 && sender === 'ai') {
                 let tableHtml = '';
-                
                 if (data[0].card_number !== undefined) {
                     tableHtml = renderCardsTable(data);
                 } else if (data[0].merchant_name !== undefined) {
@@ -504,7 +502,6 @@ def get_chat_html() -> str:
                 } else if (data[0].amount !== undefined) {
                     tableHtml = renderTransactionsTable(data);
                 }
-                
                 if (tableHtml) {
                     const tableDiv = document.createElement('div');
                     tableDiv.innerHTML = tableHtml;
@@ -613,7 +610,11 @@ def get_chat_html() -> str:
                         body: JSON.stringify({intent: pendingIntent, user_id: 1})
                     });
                     const data = await res.json();
-                    addMessage(res.ok ? data.reply : '❌ ' + (data.detail || 'Error'), 'ai');
+                    if (!res.ok) {
+                        addMessage('❌ ' + (data.detail || 'Error'), 'ai');
+                    } else {
+                        addMessage(data.reply, 'ai', false, data.data);
+                    }
                     pendingIntent = null;
                 } catch (e) {
                     addMessage('❌ Error: ' + e.message, 'ai');
