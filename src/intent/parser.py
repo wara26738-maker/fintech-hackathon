@@ -78,7 +78,7 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
         params = {}
         cid = _extract_card_id(text_lower)
         if cid: params["card_id"] = cid
-        last4 = re.search(r'(\d{4})', text_lower)
+        last4 = re.search(r'(?<!\d)(\d{16})(?!\d)', text_lower) #<--------------------------------------change here to match 16 digits not preceded or followed by another digit
         if last4 and not cid:
             params["card_last4"] = last4.group(1)
         return {"action": "cancel_card", "params": params, "confidence": 0.85}
@@ -96,10 +96,22 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
         params = {}
         cid = _extract_card_id(text_lower)
         if cid: params["card_id"] = cid
-        last4 = re.search(r'(\d{4})', text_lower)
+        last4 = re.search(r'(?<!\d)(\d{16})(?!\d)', text_lower) #<--------------------------------------change here to match 16 digits not preceded or followed by another digit
         if last4 and not cid:
             params["card_last4"] = last4.group(1)
         return {"action": "block_card", "params": params, "confidence": 0.85}
+
+    #-------------------------------------------------------------------------add unblock card----------------------------------------------------------------------------
+    # ─── Unblock Card ───
+    if re.search(r'unblock|unblok', text_lower):
+        params = {}
+        cid = _extract_card_id(text_lower)
+        if cid: params["card_id"] = cid
+        last4 = re.search(r'(?<!\d)(\d{16})(?!\d)', text_lower) #<--------------------------------------change here to match 16 digits not preceded or followed by another digit
+        if last4 and not cid:
+            params["card_last4"] = last4.group(1)
+        return {"action": "unblock_card", "params": params, "confidence": 0.85}
+    #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     # ─── Report Card Lost ───
     if any(k in text_lower for k in ["บัตรหาย", "card lost", "lost card", "lost"]):
