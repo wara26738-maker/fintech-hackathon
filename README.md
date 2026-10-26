@@ -77,3 +77,7 @@ python scripts/init_db.py
 
 # 6. Run the agent
 python main.py
+
+# 7. Run on the local host
+uvicorn src.api.main:app --reload
+http://localhost:8000
