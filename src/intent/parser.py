@@ -34,7 +34,8 @@ def find_similar_word(text: str) -> Optional[str]:
     best_match = None
     best_score = 0.0
     for word in words:
-        if len(word) < 3: continue
+        if len(word) < 3:
+            continue
         for canonical, variants in KEYWORDS.items():
             for variant in variants:
                 score = SequenceMatcher(None, word, variant).ratio()
@@ -52,10 +53,9 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
     if amount_match:
         amount = int(amount_match.group(1).replace(',', ''))
 
-    # ⭐ จับเฉพาะตัวเลข 16 หลัก (มองข้ามขีดกลาง/เว้นวรรค)
+    # จับเฉพาะตัวเลข 16 หลัก (มองข้ามขีดกลาง/เว้นวรรค)
     card_match = re.search(r'(\d(?:[-\s]?\d){15})', text)
-    
-    # ⭐ จับ ID บัตร กรณีพิมพ์ "cancel card 1" (ตัวเลข 1 หลัก)
+    # จับ ID บัตร กรณีพิมพ์ "cancel card 1" (ตัวเลข 1 หลัก)
     card_id_match = re.search(r'(?:card|บัตร)\s+(\d+)', text_lower)
 
     if any(k in text_lower for k in ["ยอดเงิน", "บาลาน", "balance", "เหลือเท่าไหร่", "มีเงินเท่าไหร่", "balan"]):
@@ -73,10 +73,10 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
     if any(k in text_lower for k in ["contact", "contacts", "ผู้รับโอน", "beneficiary", "beneficiaries", "รายชื่อ", "คนที่โอนด้วย"]):
         return {"action": "get_beneficiaries", "params": {}, "confidence": 0.9}
 
-    # ⭐⭐⭐ สำคัญมาก: ต้องเช็ค Cancel Card ก่อน Cancel Subscription เสมอ ⭐⭐⭐
+    # สำคัญมาก: ต้องเช็ค Cancel Card ก่อน Cancel Subscription เสมอ
     if re.search(r'cancel.*card|card.*cancel|ยกเลิก.*บัตร|บัตร.*ยกเลิก', text_lower):
         params = {}
-        if card_match: 
+        if card_match:
             params["card_number"] = card_match.group(1)
         elif card_id_match:
             params["card_id"] = int(card_id_match.group(1))
@@ -85,13 +85,15 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
     # ─── Unblock Card ───
     if re.search(r'unblock|unblok|ปลดบล็อก|ปลดอายัด', text_lower):
         params = {}
-        if card_match: params["card_number"] = card_match.group(1)
+        if card_match:
+            params["card_number"] = card_match.group(1)
         return {"action": "unblock_card", "params": params, "confidence": 0.85}
 
     # ─── Block Card ───
     if re.search(r'block|blok|บล็อก|อายัด', text_lower):
         params = {}
-        if card_match: params["card_number"] = card_match.group(1)
+        if card_match:
+            params["card_number"] = card_match.group(1)
         return {"action": "block_card", "params": params, "confidence": 0.85}
 
     # ─── Cancel Subscription ───
@@ -118,8 +120,10 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
                 beneficiary = name
                 break
         params = {}
-        if beneficiary: params["beneficiary_name"] = beneficiary
-        if amount: params["amount"] = amount
+        if beneficiary:
+            params["beneficiary_name"] = beneficiary
+        if amount:
+            params["amount"] = amount
         return {"action": "transfer", "params": params, "confidence": 0.85}
 
     if any(k in text_lower for k in ["ข้อมูล", "profile", "user", "ฉัน"]):
@@ -135,13 +139,15 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
 def parse_with_deepseek(text: str) -> Dict[str, Any]:
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=os.getenv("DEEPSEEK_API_KEY"),
-                        base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"))
+        client = OpenAI(
+            api_key=os.getenv("DEEPSEEK_API_KEY"),
+            base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+        )
         model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
         response = client.chat.completions.create(
             model=model,
             messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": text}],
-            temperature=0.1
+            temperature=0.1,
         )
         content = response.choices[0].message.content
         content = content.replace("```json", "").replace("```", "").strip()
@@ -159,7 +165,7 @@ def parse_with_openai(text: str) -> Dict[str, Any]:
             model=model,
             messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": text}],
             temperature=0.1,
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
         )
         return json.loads(response.choices[0].message.content)
     except Exception as e:
@@ -170,9 +176,12 @@ def parse_intent(text: str) -> Dict[str, Any]:
     if not text or not text.strip():
         return {"action": "unknown", "params": {}, "confidence": 0.0}
     provider = os.getenv("LLM_PROVIDER", "mock").lower()
-    if provider == "openai": return parse_with_openai(text)
-    elif provider == "deepseek": return parse_with_deepseek(text)
-    else: return parse_with_mock(text)
+    if provider == "openai":
+        return parse_with_openai(text)
+    elif provider == "deepseek":
+        return parse_with_deepseek(text)
+    else:
+        return parse_with_mock(text)
 
 
 def describe_intent(intent: Dict[str, Any]) -> str:
@@ -180,6 +189,7 @@ def describe_intent(intent: Dict[str, Any]) -> str:
     params = intent.get("params", {})
     confidence = intent.get("confidence", 0.0)
     desc = f"Action: {action}"
-    if params: desc += f" | Params: {params}"
+    if params:
+        desc += f" | Params: {params}"
     desc += f" | Confidence: {confidence:.2f}"
     return desc
