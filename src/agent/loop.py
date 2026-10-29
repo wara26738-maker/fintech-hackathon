@@ -220,7 +220,7 @@ def _create_otp_challenge(user_id: int, action: str, params: Dict, intent: Dict)
     return {"reply": (f"🔴 HIGH-RISK ACTION\n{summary}\n\n"
                       f"📱 OTP sent to your phone.\n"
                       f"🔑 Demo OTP: {otp}\n\n"
-                      f"Please enter the 6-digit OTP within {OTP_TTL_SECONDS // 60} minutes:"),
+                      f"Please enter the 6-digit OTP within {OTP_TTL_SECONDS // 60} minutes(DEMO):"),
             "status": "pending_mfa", "tier": "red", "requires_mfa": True, "intent": intent}
 
 
