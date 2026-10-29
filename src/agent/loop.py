@@ -1,5 +1,6 @@
 # src/agent/loop.py
 import random
+import time
 from typing import Dict, Any
 
 from ..intent.parser import parse_intent
@@ -11,11 +12,30 @@ from ..tools.banking import (
     block_card, unblock_card, cancel_card
 )
 
+# ─── Globals (defined BEFORE any function that uses them) ───
+_pending_otps: Dict[int, Dict[str, Any]] = {}
+_pending_suggestions: Dict[int, Dict[str, Any]] = {}
+MAX_OTP_ATTEMPTS = 3
+OTP_TTL_SECONDS = 300  # OTP expires after 5 minutes
+
+
+# ═══════════════════════════════════════════
+# HELPERS
+# ═══════════════════════════════════════════
+
+def clear_expired_otps() -> None:
+    """Remove expired OTPs from memory."""
+    now = time.time()
+    for uid in [u for u, p in _pending_otps.items() if now > p["expires_at"]]:
+        del _pending_otps[uid]
+
+
 def _summarize_action(action: str, params: Dict) -> str:
     if action == "transfer":
         return f"Transfer ฿{int(params.get('amount', 0)):,} to {params.get('beneficiary_name', '?')}"
     if action == "cancel_subscription":
-        return f"Cancel {params.get('merchant_name', '?')}"
+        merchant = params.get("merchant_name")
+        return f"Cancel {merchant}" if merchant else "Cancel subscription"
     if action == "block_card":
         return f"Block card {params.get('card_number', '?')}"
     if action == "unblock_card":
@@ -26,9 +46,11 @@ def _summarize_action(action: str, params: Dict) -> str:
         return "Report card lost"
     return f"Perform action: {action}"
 
+
 def _error_response(result: Dict) -> Dict[str, Any]:
     return {"reply": f"❌ {result.get('message', 'An error occurred')}",
             "status": "error", "tier": "green"}
+
 
 def _help_text() -> str:
     return ("🤖 Here's what I can do:\n\n"
@@ -51,6 +73,11 @@ def _help_text() -> str:
             "  • 'My profile'\n"
             "  • 'help'\n"
             "  • 'exit'")
+
+
+# ═══════════════════════════════════════════
+# CARD EXECUTORS
+# ═══════════════════════════════════════════
 
 def _execute_block_card(params: Dict, user_id: int) -> Dict[str, Any]:
     card_number = params.get("card_number")
@@ -83,7 +110,6 @@ def _execute_cancel_card(params: Dict, user_id: int) -> Dict[str, Any]:
 
     card_id = params.get("card_id")
 
-    # ถ้ามี ID แล้ว ให้ถาม Confirm
     if card_id:
         target = next((c for c in cards if c["id"] == card_id), None)
         if not target:
@@ -92,7 +118,6 @@ def _execute_cancel_card(params: Dict, user_id: int) -> Dict[str, Any]:
                 "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
                 "intent": {"action": "cancel_card", "params": {"card_id": target["id"]}}}
 
-    # ถ้าไม่มี ID ให้โชว์รายการบัตรให้เลือก
     active_cards = [c for c in cards if c["status"] == "active"]
     if not active_cards:
         return {"reply": "❌ No active cards to cancel", "status": "error", "tier": "yellow"}
@@ -104,10 +129,10 @@ def _execute_cancel_card(params: Dict, user_id: int) -> Dict[str, Any]:
 
     return {"reply": "\n".join(lines), "status": "success", "tier": "green"}
 
-_pending_otps = {}
-_pending_suggestions = {}
-MAX_OTP_ATTEMPTS = 3
 
+# ═══════════════════════════════════════════
+# MAIN FLOW
+# ═══════════════════════════════════════════
 
 def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
     intent = parse_intent(user_input)
@@ -126,15 +151,25 @@ def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
     if action == "help":
         return {"reply": _help_text(), "status": "success", "tier": "green"}
 
-    # ⭐ 1. ดักจับ: ถ้าเป็น Cancel Card แต่ยังไม่ระบุ ID บัตร ให้ถามเลือกบัตรก่อน (ไม่ต้อง OTP)
+    # Cancel Card without ID → list cards to choose (no OTP)
     if action == "cancel_card" and not params.get("card_id"):
         return _execute_action(action, params, user_id)
 
-    # ⭐ 2. ดักจับ: ถ้าเป็น Block/Unblock Card แต่ยังไม่ระบุเลขบัตร ให้ถามหาเลขบัตรก่อน
+    # Block/Unblock without card number → ask for number (no OTP)
     if action in ["block_card", "unblock_card"] and not params.get("card_number"):
         return _execute_action(action, params, user_id)
 
     amount = params.get("amount", 0)
+
+    if action == "transfer":
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            amount = 0
+        if amount <= 0 or not params.get("beneficiary_name"):
+            return {"reply": "⚠️ Please specify recipient and amount\nExample: Transfer 500 to Mom",
+                    "status": "error", "tier": "yellow"}
+
     tier = check_tier(action, amount)
 
     if tier == Tier.RED:
@@ -168,25 +203,50 @@ def has_pending_suggestion(user_id: int) -> bool:
     return user_id in _pending_suggestions
 
 
+# ═══════════════════════════════════════════
+# OTP FLOW
+# ═══════════════════════════════════════════
+
 def _create_otp_challenge(user_id: int, action: str, params: Dict, intent: Dict) -> Dict[str, Any]:
+    clear_expired_otps()
     otp = f"{random.randint(100000, 999999)}"
-    _pending_otps[user_id] = {"otp": otp, "intent": intent, "attempts": 0}
+    _pending_otps[user_id] = {
+        "otp": otp,
+        "intent": intent,
+        "attempts": 0,
+        "expires_at": time.time() + OTP_TTL_SECONDS,
+    }
     summary = _summarize_action(action, params)
-    return {"reply": f"🔴 HIGH-RISK ACTION\n{summary}\n\n📱 OTP sent to your phone.\n🔑 Demo OTP: {otp}\n\nPlease enter the 6-digit OTP:",
+    return {"reply": (f"🔴 HIGH-RISK ACTION\n{summary}\n\n"
+                      f"📱 OTP sent to your phone.\n"
+                      f"🔑 Demo OTP: {otp}\n\n"
+                      f"Please enter the 6-digit OTP within {OTP_TTL_SECONDS // 60} minutes:"),
             "status": "pending_mfa", "tier": "red", "requires_mfa": True, "intent": intent}
 
 
 def verify_otp(user_id: int, otp: str) -> Dict[str, Any]:
     if user_id not in _pending_otps:
         return {"reply": "❌ No pending OTP.", "status": "error", "tier": "red"}
+
     pending = _pending_otps[user_id]
-    pending["attempts"] += 1
-    if pending["attempts"] > MAX_OTP_ATTEMPTS:
+
+    # Check expiry FIRST
+    if time.time() > pending["expires_at"]:
         del _pending_otps[user_id]
-        return {"reply": "🔒 Too many failed attempts.", "status": "error", "tier": "red"}
+        return {"reply": "⌛ OTP expired. Please start the action again.",
+                "status": "error", "tier": "red"}
+
     if otp.strip() != pending["otp"]:
+        pending["attempts"] += 1
         remaining = MAX_OTP_ATTEMPTS - pending["attempts"]
-        return {"reply": f"❌ Invalid OTP. {remaining} attempts remaining.", "status": "error", "tier": "red"}
+        if remaining <= 0:
+            del _pending_otps[user_id]
+            return {"reply": "🔒 Too many failed attempts. Please start the action again.",
+                    "status": "error", "tier": "red"}
+        secs_left = max(0, int(pending["expires_at"] - time.time()))
+        return {"reply": f"❌ Invalid OTP. {remaining} attempts remaining "
+                         f"(expires in {secs_left}s).",
+                "status": "error", "tier": "red"}
 
     intent = pending["intent"]
     del _pending_otps[user_id]
@@ -195,7 +255,7 @@ def verify_otp(user_id: int, otp: str) -> Dict[str, Any]:
 
     if action == "transfer":
         result = _execute_transfer(params, user_id, verified=True)
-    elif action in ["block_card", "unblock_card", "cancel_card", "cancel_subscription"]: # ⭐ เมื่อ OTP ผ่าน ให้เรียก Confirm ทันที
+    elif action in ["block_card", "unblock_card", "cancel_card", "cancel_subscription"]:
         result = confirm_action(intent, user_id)
     else:
         result = _execute_action(action, params, user_id)
@@ -204,6 +264,10 @@ def verify_otp(user_id: int, otp: str) -> Dict[str, Any]:
     return result
 
 
+# ═══════════════════════════════════════════
+# CONFIRMATION EXECUTOR
+# ═══════════════════════════════════════════
+
 def confirm_action(intent: Dict[str, Any], user_id: int = 1) -> Dict[str, Any]:
     action = intent.get("action")
     params = intent.get("params", {})
@@ -211,10 +275,10 @@ def confirm_action(intent: Dict[str, Any], user_id: int = 1) -> Dict[str, Any]:
     if action == "transfer":
         return _execute_transfer(params, user_id, verified=True)
 
-    if action == "cancel_subscription": 
-        result = cancel_subscription( # ⭐ ส่งทั้ง ID และชื่อร้านไปให้ Tools ค้นหา
+    if action == "cancel_subscription":
+        result = cancel_subscription(
             subscription_id=params.get("subscription_id"),
-            merchant_name=params.get("merchant_name")
+            merchant_name=params.get("merchant_name"),
         )
         if result["status"] == "success":
             return {"reply": f"✅ Cancelled {result['data']['merchant_name']}",
@@ -236,7 +300,9 @@ def confirm_action(intent: Dict[str, Any], user_id: int = 1) -> Dict[str, Any]:
         return _error_response(result)
 
     if action == "cancel_card":
-        card_id = params.get("card_id", 1)
+        card_id = params.get("card_id")
+        if not card_id:
+            return {"reply": "❌ No card specified", "status": "error", "tier": "yellow"}
         result = cancel_card(card_id)
         if result["status"] == "success":
             return {"reply": f"✅ Card cancelled\n💳 {result['data']['card_number']}",
@@ -245,6 +311,10 @@ def confirm_action(intent: Dict[str, Any], user_id: int = 1) -> Dict[str, Any]:
 
     return {"reply": "❌ Cannot perform this action", "status": "error", "tier": "yellow"}
 
+
+# ═══════════════════════════════════════════
+# READ-ONLY / DISPATCH EXECUTOR
+# ═══════════════════════════════════════════
 
 def _execute_action(action: str, params: Dict, user_id: int) -> Dict[str, Any]:
     try:
@@ -313,22 +383,29 @@ def _execute_action(action: str, params: Dict, user_id: int) -> Dict[str, Any]:
         if action == "report_card_lost":
             return {"reply": "✅ Card reported as lost.", "status": "success", "tier": "red"}
 
-        return {"reply": f"Sorry, action '{action}' is not supported yet", "status": "unsupported", "tier": "green"}
+        return {"reply": f"Sorry, action '{action}' is not supported yet",
+                "status": "unsupported", "tier": "green"}
 
     except Exception as e:
         return {"reply": f"❌ Error: {str(e)}", "status": "error", "tier": "green"}
 
+
+# ═══════════════════════════════════════════
+# ACTION-SPECIFIC EXECUTORS
+# ═══════════════════════════════════════════
 
 def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dict[str, Any]:
     beneficiary_name = params.get("beneficiary_name", "")
     amount = params.get("amount", 0)
 
     if not beneficiary_name or not amount:
-        return {"reply": "⚠️ Please specify recipient and amount\nExample: Transfer 500 to Mom", "status": "error", "tier": "yellow"}
+        return {"reply": "⚠️ Please specify recipient and amount\nExample: Transfer 500 to Mom",
+                "status": "error", "tier": "yellow"}
 
     ben_result = find_beneficiary(user_id, beneficiary_name)
     if ben_result["status"] != "success":
-        return {"reply": f"❌ Beneficiary '{beneficiary_name}' not found", "status": "error", "tier": "yellow"}
+        return {"reply": f"❌ Beneficiary '{beneficiary_name}' not found",
+                "status": "error", "tier": "yellow"}
     ben = ben_result["data"]
 
     if verified:
@@ -337,30 +414,35 @@ def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dic
             to_account_id=params.get("to_account_id", 3),
             amount=amount,
             note=beneficiary_name,
-            category="transfer"
+            category="transfer",
         )
         if result["status"] == "success":
             data = result["data"]
-            return {"reply": f"✅ Transferred ฿{int(data['amount']):,} to {ben['nickname']}\n💰 New balance: ฿{int(data['new_balance']):,}",
-                    "status": "success", "tier": "yellow" if amount <= 1000 else "red", "data": data}
+            return {"reply": f"✅ Transferred ฿{int(data['amount']):,} to {ben['nickname']}\n"
+                             f"💰 New balance: ฿{int(data['new_balance']):,}",
+                    "status": "success",
+                    "tier": "yellow" if amount <= 1000 else "red",
+                    "data": data}
         return _error_response(result)
 
     tier = check_tier("transfer", amount)
     if tier == Tier.RED:
         return _create_otp_challenge(user_id, "transfer", params, {
             "action": "transfer",
-            "params": {"beneficiary_name": beneficiary_name, "amount": amount, "to_account_id": 3}
+            "params": {"beneficiary_name": beneficiary_name, "amount": amount, "to_account_id": 3},
         })
 
     return {"reply": f"⚠️ Transfer ฿{int(amount):,} to {ben['nickname']} ({ben['full_name']})\nConfirm? [y/n]",
             "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
-            "intent": {"action": "transfer", "params": {"beneficiary_name": beneficiary_name, "amount": amount, "to_account_id": 3}}}
+            "intent": {"action": "transfer",
+                       "params": {"beneficiary_name": beneficiary_name, "amount": amount, "to_account_id": 3}}}
 
 
 def _execute_cancel_subscription(params: Dict, user_id: int) -> Dict[str, Any]:
     merchant = params.get("merchant_name", "")
     if not merchant:
-        return {"reply": "⚠️ Please specify subscription to cancel\nExample: Cancel Netflix", "status": "error", "tier": "yellow"}
+        return {"reply": "⚠️ Please specify subscription to cancel\nExample: Cancel Netflix",
+                "status": "error", "tier": "yellow"}
 
     subs_result = get_subscriptions(user_id)
     if subs_result["status"] != "success":
@@ -373,8 +455,19 @@ def _execute_cancel_subscription(params: Dict, user_id: int) -> Dict[str, Any]:
             break
 
     if not target:
-        return {"reply": f"❌ Subscription '{merchant}' not found", "status": "error", "tier": "yellow"}
+        return {"reply": f"❌ Subscription '{merchant}' not found",
+                "status": "error", "tier": "yellow"}
 
-    return {"reply": f"⚠️ Cancel {target['merchant_name']} (฿{int(target['amount']):,}/month)\nConfirm? [y/n]",
-            "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
-            "intent": {"action": "cancel_subscription"}, "params": {"subscription_id": target}}
+    return {
+        "reply": f"⚠️ Cancel {target['merchant_name']} (฿{int(target['amount']):,}/month)\nConfirm? [y/n]",
+        "status": "pending_confirmation",
+        "tier": "yellow",
+        "requires_confirmation": True,
+        "intent": {
+            "action": "cancel_subscription",
+            "params": {
+                "subscription_id": target["id"],
+                "merchant_name": target["merchant_name"],
+            },
+        },
+    }
