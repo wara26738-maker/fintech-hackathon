@@ -135,7 +135,7 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
     suggestion = find_similar_word(text)
     return {"action": "unknown", "params": {"original": text, "suggestion": suggestion}, "confidence": 0.0}
 
-DEEPSEEK_API_KEY="sk-05b39c2f8ea04aac8b6820c4c4537bde"
+DEEPSEEK_API_KEY="sk-a60d1b02548c43bda731b1919af8046d"
 
 def parse_with_deepseek(text: str) -> Dict[str, Any]:
     try:
