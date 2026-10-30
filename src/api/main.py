@@ -9,7 +9,6 @@ from typing import Optional, Dict, Any
 from ..agent.loop import process_message, confirm_action, verify_otp, handle_suggestion, has_pending_suggestion
 from ..db.session import init_db
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Banking AI Agent API starting...")
@@ -33,36 +32,19 @@ async def lifespan(app: FastAPI):
     yield
     print("👋 API shutting down...")
 
-
-app = FastAPI(
-    title="Banking AI Agent API",
-    description="AI-powered banking assistant",
-    version="1.0.0",
-    lifespan=lifespan
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+app = FastAPI(title="Banking AI Agent API", version="1.0.0", lifespan=lifespan)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 class ChatRequest(BaseModel):
     message: str
     user_id: int = 1
     session_id: Optional[str] = None
-
 class ConfirmRequest(BaseModel):
     intent: Dict[str, Any]
     user_id: int = 1
-
 class VerifyOTPRequest(BaseModel):
     user_id: int = 1
     otp: str
-
 class ChatResponse(BaseModel):
     reply: str
     status: str
@@ -72,7 +54,6 @@ class ChatResponse(BaseModel):
     data: Optional[Any] = None
     intent: Optional[Dict[str, Any]] = None
     retry_message: Optional[str] = None
-
 
 @app.get("/")
 async def root():
@@ -85,7 +66,6 @@ async def favicon():
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok", "version": "1.0.0", "service": "Banking AI Agent"}
-
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
@@ -112,7 +92,6 @@ async def chat(request: ChatRequest):
         print(f"❌ TRACEBACK:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
 
-
 @app.post("/api/confirm", response_model=ChatResponse)
 async def confirm(request: ConfirmRequest):
     try:
@@ -120,7 +99,6 @@ async def confirm(request: ConfirmRequest):
         return ChatResponse(**response)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/api/verify-otp", response_model=ChatResponse)
 async def verify_otp_endpoint(request: VerifyOTPRequest):
@@ -144,199 +122,95 @@ def get_chat_html() -> str:
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem;
         }
         .container {
-            width: 100%;
-            max-width: 520px;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            height: 90vh;
-            max-height: 750px;
+            width: 100%; max-width: 520px; background: white; border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden;
+            display: flex; flex-direction: column; height: 90vh; max-height: 750px; position: relative;
         }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 0.75rem 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.5rem; }
         .header h1 { font-size: 1rem; font-weight: 600; }
-        .chat-area {
-            flex: 1;
-            overflow-y: auto;
-            padding: 0.5rem;
-            background: #f7f8fc;
-        }
-        .message {
-            margin-bottom: 0.5rem;
-            display: flex;
-            animation: fadeIn 0.3s ease;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .chat-area { flex: 1; overflow-y: auto; padding: 0.5rem; background: #f7f8fc; }
+        .message { margin-bottom: 0.5rem; display: flex; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .message.user { justify-content: flex-end; align-items: flex-start; gap: 0.375rem; }
         .message.ai { justify-content: flex-start; align-items: flex-start; gap: 0.375rem; }
         
         .ai-avatar, .user-avatar {
-            width: 1.75rem;
-            height: 1.75rem;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.875rem;
-            flex-shrink: 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-            line-height: 1;
+            width: 1.75rem; height: 1.75rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 0.875rem; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.15); line-height: 1;
         }
         .ai-avatar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         .user-avatar { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
 
         .bubble {
-            max-width: 85%;
-            padding: 0.5rem 0.75rem;
-            border-radius: 12px;
-            font-size: 0.8125rem;
-            line-height: 1.4;
-            word-wrap: break-word;
-            white-space: pre-wrap;
+            max-width: 85%; padding: 0.5rem 0.75rem; border-radius: 12px; font-size: 0.8125rem;
+            line-height: 1.4; word-wrap: break-word; white-space: pre-wrap;
         }
-        .user .bubble {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-        .ai .bubble {
-            background: white;
-            color: #333;
-            border-bottom-left-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
+        .user .bubble { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-bottom-right-radius: 4px; }
+        .ai .bubble { background: white; color: #333; border-bottom-left-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 
-        /* ─── Tables UI ─── */
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 0.5rem;
-            font-size: 0.75rem;
-            white-space: normal;
-        }
-        .data-table th {
-            text-align: left;
-            padding: 0.375rem 0.25rem;
-            border-bottom: 1px solid #eee;
-            color: #666;
-            font-weight: 600;
-            font-size: 0.6875rem;
-            text-transform: uppercase;
-        }
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.75rem; white-space: normal; }
+        .data-table th { text-align: left; padding: 0.375rem 0.25rem; border-bottom: 1px solid #eee; color: #666; font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; }
         .data-table th.right { text-align: right; }
-        .data-table td {
-            padding: 0.5rem 0.25rem;
-            border-bottom: 1px solid #f9f9f9;
-        }
+        .data-table td { padding: 0.5rem 0.25rem; border-bottom: 1px solid #f9f9f9; }
         .data-table td.right { text-align: right; font-weight: 600; }
         .data-table tr:last-child td { border-bottom: none; }
         
-        .tx-category {
-            display: inline-block;
-            padding: 0.125rem 0.375rem;
-            background: #f0f2ff;
-            color: #667eea;
-            border-radius: 4px;
-            font-size: 0.625rem;
-            font-weight: 500;
-        }
-        .status-badge {
-            display: inline-block;
-            padding: 0.125rem 0.375rem;
-            border-radius: 4px;
-            font-size: 0.625rem;
-            font-weight: 500;
-        }
+        .tx-category { display: inline-block; padding: 0.125rem 0.375rem; background: #f0f2ff; color: #667eea; border-radius: 4px; font-size: 0.625rem; font-weight: 500; }
+        .status-badge { display: inline-block; padding: 0.125rem 0.375rem; border-radius: 4px; font-size: 0.625rem; font-weight: 500; }
         .status-active { background: #dcfce7; color: #16a34a; }
         .status-blocked { background: #fee2e2; color: #dc2626; }
         .status-expired { background: #f3f4f6; color: #6b7280; }
 
-        .input-area {
-            padding: 0.5rem 0.75rem;
-            background: white;
-            border-top: 1px solid #eee;
-            display: flex;
-            gap: 0.375rem;
-        }
-        input[type="text"] {
-            flex: 1;
-            padding: 0.5rem 0.75rem;
-            border: 1.5px solid #e0e0e0;
-            border-radius: 20px;
-            font-size: 0.8125rem;
-            outline: none;
-            transition: border-color 0.2s;
-        }
+        .input-area { padding: 0.5rem 0.75rem; background: white; border-top: 1px solid #eee; display: flex; gap: 0.375rem; }
+        input[type="text"] { flex: 1; padding: 0.5rem 0.75rem; border: 1.5px solid #e0e0e0; border-radius: 20px; font-size: 0.8125rem; outline: none; transition: border-color 0.2s; }
         input[type="text"]:focus { border-color: #667eea; }
-        button.primary {
-            padding: 0.5rem 0.875rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 20px;
-            font-size: 0.8125rem;
-            font-weight: 600;
-            cursor: pointer;
-        }
+        button.primary { padding: 0.5rem 0.875rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 20px; font-size: 0.8125rem; font-weight: 600; cursor: pointer; }
         button.primary:hover { transform: scale(1.03); }
         button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
         
         .typing { color: #999; font-size: 0.75rem; }
-        .typing::after {
-            content: '...';
-            animation: dots 1.5s steps(4, end) infinite;
-        }
-        @keyframes dots {
-            0%, 20% { content: ''; }
-            40% { content: '.'; }
-            60% { content: '..'; }
-            80%, 100% { content: '...'; }
-        }
+        .typing::after { content: '...'; animation: dots 1.5s steps(4, end) infinite; }
+        @keyframes dots { 0%, 20% { content: ''; } 40% { content: '.'; } 60% { content: '..'; } 80%, 100% { content: '...'; } }
 
-        /* ─── Confirm Buttons ─── */
         .confirm-buttons { display: flex; gap: 0.375rem; margin-top: 0.5rem; }
-        .confirm-btn {
-            padding: 0.375rem 0.625rem; border: none; border-radius: 6px;
-            font-size: 0.6875rem; font-weight: 600; cursor: pointer;
-            transition: all 0.15s; flex: 1;
-        }
+        .confirm-btn { padding: 0.375rem 0.625rem; border: none; border-radius: 6px; font-size: 0.6875rem; font-weight: 600; cursor: pointer; transition: all 0.15s; flex: 1; }
         .confirm-yes { background: #10b981; color: white; }
         .confirm-yes:hover { background: #059669; transform: translateY(-1px); }
         .confirm-no { background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb; }
         .confirm-no:hover { background: #e5e7eb; }
 
-        /* ─── Welcome ─── */
         .welcome-title { font-size: 0.8125rem; font-weight: 600; color: #333; margin-bottom: 0.125rem; }
         .welcome-subtitle { font-size: 0.6875rem; color: #666; margin-bottom: 0.5rem; }
         .feature-group { margin-bottom: 0.375rem; }
         .feature-label { display: block; font-size: 0.5625rem; font-weight: 700; color: #667eea; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 0.1875rem; }
         .quick-actions { display: flex; flex-wrap: wrap; gap: 0.1875rem; }
-        .quick-btn {
-            padding: 0.1875rem 0.375rem; background: #f0f2ff; color: #667eea;
-            border: 1px solid #e0e3ff; border-radius: 8px; font-size: 0.625rem;
-            font-weight: 500; cursor: pointer; white-space: nowrap;
-        }
+        .quick-btn { padding: 0.1875rem 0.375rem; background: #f0f2ff; color: #667eea; border: 1px solid #e0e3ff; border-radius: 8px; font-size: 0.625rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
         .quick-btn:hover { background: #667eea; color: white; }
+        .quick-btn.active { background: #667eea; color: white; }
         .welcome-tip { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #eee; color: #666; font-size: 0.5625rem; font-style: italic; }
+
+        /* ⭐ Modal CSS */
+        .modal-overlay {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .modal-content {
+            background: white; padding: 1.25rem; border-radius: 16px; width: 100%; max-width: 350px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .modal-content h2 { font-size: 1rem; margin-bottom: 1rem; color: #333; }
+        .form-group { margin-bottom: 0.75rem; }
+        .form-group label { display: block; font-size: 0.6875rem; color: #666; margin-bottom: 0.25rem; font-weight: 600; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 0.5rem; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 0.8125rem; outline: none;
+        }
+        .modal-buttons { display: flex; gap: 0.5rem; margin-top: 1.25rem; }
+        .modal-buttons button { flex: 1; padding: 0.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .btn-cancel { background: #f3f4f6; color: #6b7280; }
+        .btn-submit { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
     </style>
 </head>
 <body>
@@ -353,37 +227,28 @@ def get_chat_html() -> str:
                     <div class="welcome-subtitle">Click any button to try:</div>
                     
                     <div class="feature-group">
+                        <span class="feature-label">💸 Smart Transfers</span>
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="openTransferModal()">✉️ Transfer</button>
+                            <button class="quick-btn" onclick="openRecurringModal()">🔄 Recurring</button>
+                            <button class="quick-btn" onclick="openSplitMethodModal()">🍕 Split Bill</button>
+                        </div>
+                    </div>
+
+                    <div class="feature-group">
                         <span class="feature-label">💰 Finance</span>
                         <div class="quick-actions">
                             <button class="quick-btn" onclick="quickSend('Check balance')">💵 Balance</button>
-                            <button class="quick-btn" onclick="quickSend('Show accounts')">📋 Accounts</button>
                             <button class="quick-btn" onclick="quickSend('Show transactions')">📊 Txns</button>
                         </div>
                     </div>
                     
                     <div class="feature-group">
-                        <span class="feature-label">💸 Transfer</span>
+                        <span class="feature-label">🔄 Subs & Cards</span>
                         <div class="quick-actions">
-                            <button class="quick-btn" onclick="quickSend('Transfer 500 to Mom')">✉️ 500→Mom</button>
-                            <button class="quick-btn" onclick="promptTransfer()">💸 Custom</button>
-                            <button class="quick-btn" onclick="quickSend('Show contacts')">👥 Contacts</button>
-                        </div>
-                    </div>
-                    
-                    <div class="feature-group">
-                        <span class="feature-label">🔄 Subs</span>
-                        <div class="quick-actions">
-                            <button class="quick-btn" onclick="quickSend('What am I paying for')">📺 List</button>
-                            <button class="quick-btn" onclick="quickSend('Cancel Netflix')">❌ Netflix</button>
-                        </div>
-                    </div>
-                    
-                    <div class="feature-group">
-                        <span class="feature-label">💳 Cards</span>
-                        <div class="quick-actions">
-                            <button class="quick-btn" onclick="quickSend('Show cards')">💳 Show</button>
+                            <button class="quick-btn" onclick="quickSend('What am I paying for')">📺 Subs</button>
+                            <button class="quick-btn" onclick="quickSend('Show cards')">💳 Cards</button>
                             <button class="quick-btn" onclick="quickSend('Block card')">🔒 Block</button>
-                            <button class="quick-btn" onclick="quickSend('Report card lost')">🚨 Lost</button>
                         </div>
                     </div>
                     
@@ -397,6 +262,102 @@ def get_chat_html() -> str:
             <input type="text" id="input" placeholder="Type a message..." autofocus>
             <button class="primary" id="send" onclick="send()">Send</button>
         </div>
+
+        <!-- ⭐ Modal Transfer -->
+        <div class="modal-overlay" id="transfer-modal">
+            <div class="modal-content">
+                <h2>✉️ Transfer Money</h2>
+                <div class="form-group">
+                    <label>Select Recipient</label>
+                    <div class="quick-actions" id="transfer-contacts">
+                        <button class="quick-btn" onclick="selectRecipient('Mom', this)">👩 Mom</button>
+                        <button class="quick-btn" onclick="selectRecipient('Sarah Work', this)">👩‍💼 Sarah Work</button>
+                        <button class="quick-btn" onclick="selectRecipient('Sarah Sister', this)">👧 Sarah Sister</button>
+                    </div>
+                    <input type="text" id="transfer-recipient" placeholder="Or type a name..." style="margin-top: 0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Amount (THB)</label>
+                    <input type="number" id="transfer-amount" value="500" min="1">
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn-cancel" onclick="closeModal('transfer-modal')">Cancel</button>
+                    <button class="btn-submit" onclick="submitTransfer()">Transfer</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ⭐ Modal Recurring -->
+        <div class="modal-overlay" id="recurring-modal">
+            <div class="modal-content">
+                <h2>🔄 Recurring Payment</h2>
+                <div class="form-group">
+                    <label>Select Amount (THB)</label>
+                    <div class="quick-actions">
+                        <button class="quick-btn" onclick="setRecurringAmount(500)">฿500</button>
+                        <button class="quick-btn" onclick="setRecurringAmount(1000)">฿1,000</button>
+                        <button class="quick-btn" onclick="setRecurringAmount(5000)">฿5,000</button>
+                    </div>
+                    <input type="number" id="rec-amount" value="1000" min="1" style="margin-top: 0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Recipient Name</label>
+                    <input type="text" id="rec-recipient" value="Mom">
+                </div>
+                <div class="form-group">
+                    <label>Start Date</label>
+                    <input type="date" id="rec-date">
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn-cancel" onclick="closeModal('recurring-modal')">Cancel</button>
+                    <button class="btn-submit" onclick="submitRecurring()">Schedule</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ⭐ Modal Split Method (Step 1) -->
+        <div class="modal-overlay" id="split-method-modal">
+            <div class="modal-content">
+                <h2>🍕 Split Bill</h2>
+                <p style="font-size: 0.8125rem; color: #666; margin-bottom: 1rem;">How would you like to split the bill?</p>
+                <div class="quick-actions" style="flex-direction: column; gap: 0.5rem;">
+                    <button class="quick-btn" style="padding: 0.75rem; font-size: 0.875rem;" onclick="openSplitDetailsModal('equal')">⚖️ Equal Share</button>
+                    <button class="quick-btn" style="padding: 0.75rem; font-size: 0.875rem;" onclick="openSplitDetailsModal('percentage')">📊 Percentage</button>
+                </div>
+                <div class="modal-buttons" style="margin-top: 1rem;">
+                    <button class="btn-cancel" onclick="closeModal('split-method-modal')">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ⭐ Modal Split Details (Step 2) -->
+        <div class="modal-overlay" id="split-details-modal">
+            <div class="modal-content">
+                <h2 id="split-details-title">🍕 Equal Split</h2>
+                <input type="hidden" id="split-type-hidden" value="equal">
+                <div class="form-group">
+                    <label>Total Amount (THB)</label>
+                    <div class="quick-actions">
+                        <button class="quick-btn" onclick="setSplitAmount(500)">฿500</button>
+                        <button class="quick-btn" onclick="setSplitAmount(1500)">฿1,500</button>
+                        <button class="quick-btn" onclick="setSplitAmount(3000)">฿3,000</button>
+                    </div>
+                    <input type="number" id="split-amount" value="1500" min="1" style="margin-top: 0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Select Friends</label>
+                    <div class="quick-actions" id="split-contacts">
+                        <button class="quick-btn" onclick="toggleSplitContact('Mom', this)">👩 Mom</button>
+                        <button class="quick-btn" onclick="toggleSplitContact('Sarah Work', this)">👩‍💼 Sarah Work</button>
+                        <button class="quick-btn" onclick="toggleSplitContact('Sarah Sister', this)">👧 Sarah Sister</button>
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn-cancel" onclick="closeModal('split-details-modal')">Back</button>
+                    <button class="btn-submit" onclick="submitSplitBill()">Split Bill</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -405,108 +366,159 @@ def get_chat_html() -> str:
         const sendBtn = document.getElementById('send');
         let pendingIntent = null;
         let pendingMFA = false;
+        let selectedSplitContacts = [];
 
         input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') send();
         });
 
+        // ⭐ Modal Functions
+        function openTransferModal() {
+            document.getElementById('transfer-modal').style.display = 'flex';
+        }
+
+        function openRecurringModal() {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('rec-date').value = tomorrow.toISOString().split('T')[0];
+            document.getElementById('recurring-modal').style.display = 'flex';
+        }
+
+        // ⭐ Split Bill Flow
+        function openSplitMethodModal() {
+            document.getElementById('split-method-modal').style.display = 'flex';
+        }
+
+        function openSplitDetailsModal(type) {
+            document.getElementById('split-method-modal').style.display = 'none';
+            document.getElementById('split-details-modal').style.display = 'flex';
+            document.getElementById('split-type-hidden').value = type;
+            document.getElementById('split-details-title').innerText = type === 'equal' ? '🍕 Equal Split' : '📊 Percentage Split';
+            
+            // Reset contacts
+            selectedSplitContacts = [];
+            document.querySelectorAll('#split-contacts .quick-btn').forEach(btn => btn.classList.remove('active'));
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function selectRecipient(name, btn) {
+            document.getElementById('transfer-recipient').value = name;
+            document.querySelectorAll('#transfer-contacts .quick-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function setRecurringAmount(amount) {
+            document.getElementById('rec-amount').value = amount;
+        }
+
+        function setSplitAmount(amount) {
+            document.getElementById('split-amount').value = amount;
+        }
+
+        function toggleSplitContact(name, btn) {
+            if (selectedSplitContacts.includes(name)) {
+                selectedSplitContacts = selectedSplitContacts.filter(c => c !== name);
+                btn.classList.remove('active');
+            } else {
+                selectedSplitContacts.push(name);
+                btn.classList.add('active');
+            }
+        }
+
+        function submitTransfer() {
+            const recipient = document.getElementById('transfer-recipient').value;
+            const amount = document.getElementById('transfer-amount').value;
+            if (!recipient || !amount) { alert("Please fill all fields"); return; }
+            closeModal('transfer-modal');
+            quickSend(`Transfer ${amount} to ${recipient}`);
+        }
+
+        function submitRecurring() {
+            const amount = document.getElementById('rec-amount').value;
+            const recipient = document.getElementById('rec-recipient').value;
+            const date = document.getElementById('rec-date').value;
+            if (!amount || !recipient || !date) { alert("Please fill all fields"); return; }
+            closeModal('recurring-modal');
+            quickSend(`Schedule ${amount} to ${recipient} on ${date} at 09:00`);
+        }
+
+        function submitSplitBill() {
+            const amount = document.getElementById('split-amount').value;
+            const type = document.getElementById('split-type-hidden').value;
+            
+            if (!amount) { alert("Please enter an amount"); return; }
+            if (selectedSplitContacts.length === 0) { alert("Please select at least one friend"); return; }
+            
+            closeModal('split-details-modal');
+            const contactsStr = selectedSplitContacts.join(', ');
+            quickSend(`Split ${amount} with ${contactsStr} using ${type}`);
+        }
+
         // ─── Render Functions ───
         function renderTransactionsTable(data) {
             if (!data || !Array.isArray(data) || data.length === 0) return '';
-            let html = `<table class="data-table">
-                <thead><tr><th>Amount</th><th>Category</th><th class="right">Recipient</th></tr></thead><tbody>`;
+            let html = `<table class="data-table"><thead><tr><th>Amount</th><th>Category</th><th class="right">Recipient</th></tr></thead><tbody>`;
             data.forEach(tx => {
-                const amount = '฿' + Math.floor(tx.amount).toLocaleString();
-                const category = (tx.category || 'transfer').charAt(0).toUpperCase() + (tx.category || 'transfer').slice(1);
-                const note = tx.note || '-';
-                html += `<tr>
-                    <td>${amount}</td>
-                    <td><span class="tx-category">${category}</span></td>
-                    <td class="right">${note}</td>
-                </tr>`;
+                html += `<tr><td>฿${Math.floor(tx.amount).toLocaleString()}</td><td><span class="tx-category">${(tx.category||'transfer').charAt(0).toUpperCase()+(tx.category||'transfer').slice(1)}</span></td><td class="right">${tx.note || '-'}</td></tr>`;
             });
             return html + `</tbody></table>`;
         }
 
         function renderCardsTable(data) {
             if (!data || !Array.isArray(data) || data.length === 0) return '';
-            let html = `<table class="data-table">
-                <thead><tr><th>Name</th><th>Card Number</th><th class="right">Status</th></tr></thead><tbody>`;
+            let html = `<table class="data-table"><thead><tr><th>Name</th><th>Card Number</th><th class="right">Status</th></tr></thead><tbody>`;
             data.forEach(c => {
                 const statusClass = c.status === 'active' ? 'status-active' : (c.status === 'blocked' ? 'status-blocked' : 'status-expired');
-                html += `<tr>
-                    <td>${c.card_type || '-'}</td>
-                    <td>${c.card_number || '-'}</td>
-                    <td class="right"><span class="status-badge ${statusClass}">${c.status}</span></td>
-                </tr>`;
+                html += `<tr><td>${c.card_type || '-'}</td><td>${c.card_number || '-'}</td><td class="right"><span class="status-badge ${statusClass}">${c.status}</span></td></tr>`;
             });
             return html + `</tbody></table>`;
         }
 
         function renderSubscriptionsTable(data) {
             if (!data || !Array.isArray(data) || data.length === 0) return '';
-            let html = `<table class="data-table">
-                <thead><tr><th>Name</th><th>Amount</th></tr></thead><tbody>`;
-            data.forEach(s => {
-                html += `<tr>
-                    <td>${s.merchant_name}</td>
-                    <td>฿${s.amount}</td>
-                </tr>`;
-            });
+            let html = `<table class="data-table"><thead><tr><th>Name</th><th>Amount</th></tr></thead><tbody>`;
+            data.forEach(s => { html += `<tr><td>${s.merchant_name}</td><td>฿${s.amount}</td></tr>`; });
             return html + `</tbody></table>`;
         }
 
         function renderContactsTable(data) {
             if (!data || !Array.isArray(data) || data.length === 0) return '';
-            let html = `<table class="data-table">
-                <thead><tr><th>Name</th><th class="right">Tel</th></tr></thead><tbody>`;
-            data.forEach(b => {
-                html += `<tr>
-                    <td>${b.full_name} (${b.nickname})</td>
-                    <td class="right">${b.phone || '-'}</td>
-                </tr>`;
-            });
+            let html = `<table class="data-table"><thead><tr><th>Name</th><th class="right">Tel</th></tr></thead><tbody>`;
+            data.forEach(b => { html += `<tr><td>${b.full_name} (${b.nickname})</td><td class="right">${b.phone || '-'}</td></tr>`; });
             return html + `</tbody></table>`;
         }
 
         function addMessage(text, sender, showConfirmButtons = false, data = null) {
             const div = document.createElement('div');
             div.className = `message ${sender}`;
-            
             if (sender === 'ai') {
                 const avatar = document.createElement('div');
                 avatar.className = 'ai-avatar';
                 avatar.textContent = '🤖';
                 div.appendChild(avatar);
             }
-            
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
-            
             if (text) {
                 const textNode = document.createElement('div');
                 textNode.textContent = text;
                 bubble.appendChild(textNode);
             }
-
             if (data && Array.isArray(data) && data.length > 0 && sender === 'ai') {
                 let tableHtml = '';
-                if (data[0].card_number !== undefined) {
-                    tableHtml = renderCardsTable(data);
-                } else if (data[0].merchant_name !== undefined) {
-                    tableHtml = renderSubscriptionsTable(data);
-                } else if (data[0].phone !== undefined && data[0].nickname !== undefined) {
-                    tableHtml = renderContactsTable(data);
-                } else if (data[0].amount !== undefined) {
-                    tableHtml = renderTransactionsTable(data);
-                }
+                if (data[0].card_number !== undefined) tableHtml = renderCardsTable(data);
+                else if (data[0].merchant_name !== undefined) tableHtml = renderSubscriptionsTable(data);
+                else if (data[0].phone !== undefined && data[0].nickname !== undefined) tableHtml = renderContactsTable(data);
+                else if (data[0].amount !== undefined) tableHtml = renderTransactionsTable(data);
                 if (tableHtml) {
                     const tableDiv = document.createElement('div');
                     tableDiv.innerHTML = tableHtml;
                     bubble.appendChild(tableDiv);
                 }
             }
-            
             if (showConfirmButtons) {
                 const btnDiv = document.createElement('div');
                 btnDiv.className = 'confirm-buttons';
@@ -522,16 +534,13 @@ def get_chat_html() -> str:
                 btnDiv.appendChild(noBtn);
                 bubble.appendChild(btnDiv);
             }
-            
             div.appendChild(bubble);
-            
             if (sender === 'user') {
                 const avatar = document.createElement('div');
                 avatar.className = 'user-avatar';
                 avatar.textContent = '🧔🏻‍♂️';
                 div.appendChild(avatar);
             }
-            
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
         }
@@ -562,14 +571,6 @@ def get_chat_html() -> str:
             send();
         }
 
-        function promptTransfer() {
-            const amount = prompt("💸 Enter amount (THB):");
-            if (!amount || isNaN(amount) || parseInt(amount) <= 0) return;
-            const recipient = prompt("👤 Enter recipient (mom/dad/wife):", "mom");
-            if (!recipient) return;
-            quickSend(`Transfer ${amount} to ${recipient}`);
-        }
-
         async function send() {
             const text = input.value.trim();
             if (!text) return;
@@ -591,10 +592,7 @@ def get_chat_html() -> str:
                         addMessage(data.reply, 'ai', false, data.data);
                         if (!data.requires_mfa) pendingMFA = false;
                     }
-                } catch (e) {
-                    addMessage('❌ Error: ' + e.message, 'ai');
-                    pendingMFA = false;
-                }
+                } catch (e) { addMessage('❌ Error: ' + e.message, 'ai'); pendingMFA = false; }
                 sendBtn.disabled = false;
                 input.focus();
                 return;
@@ -608,15 +606,10 @@ def get_chat_html() -> str:
                         body: JSON.stringify({intent: pendingIntent, user_id: 1})
                     });
                     const data = await res.json();
-                    if (!res.ok) {
-                        addMessage('❌ ' + (data.detail || 'Error'), 'ai');
-                    } else {
-                        addMessage(data.reply, 'ai', false, data.data);
-                    }
+                    if (!res.ok) addMessage('❌ ' + (data.detail || 'Error'), 'ai');
+                    else addMessage(data.reply, 'ai', false, data.data);
                     pendingIntent = null;
-                } catch (e) {
-                    addMessage('❌ Error: ' + e.message, 'ai');
-                }
+                } catch (e) { addMessage('❌ Error: ' + e.message, 'ai'); }
                 sendBtn.disabled = false;
                 return;
             } else if (pendingIntent && (text.toLowerCase() === 'n' || text.toLowerCase() === 'no')) {

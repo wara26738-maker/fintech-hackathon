@@ -10,12 +10,10 @@ import enum
 
 Base = declarative_base()
 
-
 class AccountType(enum.Enum):
     SAVINGS = "savings"
     CURRENT = "current"
     FIXED = "fixed"
-
 
 class TransactionType(enum.Enum):
     TRANSFER = "transfer"
@@ -24,19 +22,16 @@ class TransactionType(enum.Enum):
     WITHDRAWAL = "withdrawal"
     REFUND = "refund"
 
-
 class TransactionStatus(enum.Enum):
     PENDING = "pending"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
 
-
 class CardType(enum.Enum):
     DEBIT = "debit"
     CREDIT = "credit"
     VIRTUAL = "virtual"
-
 
 class CardStatus(enum.Enum):
     ACTIVE = "active"
@@ -44,16 +39,13 @@ class CardStatus(enum.Enum):
     LOST = "lost"
     EXPIRED = "expired"
 
-
 class PermissionTier(enum.Enum):
     GREEN = "green"
     YELLOW = "yellow"
     RED = "red"
 
-
 class User(Base):
     __tablename__ = "users"
-
     id = Column(Integer, primary_key=True)
     full_name = Column(String(100), nullable=False)
     phone = Column(String(20), unique=True, nullable=False)
@@ -71,10 +63,8 @@ class User(Base):
     def __repr__(self):
         return f"<User {self.full_name} ({self.phone})>"
 
-
 class Account(Base):
     __tablename__ = "accounts"
-
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     account_number = Column(String(20), unique=True, nullable=False)
@@ -85,24 +75,14 @@ class Account(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="accounts")
-    transactions_from = relationship(
-        "Transaction",
-        foreign_keys="Transaction.from_account_id",
-        back_populates="from_account"
-    )
-    transactions_to = relationship(
-        "Transaction",
-        foreign_keys="Transaction.to_account_id",
-        back_populates="to_account"
-    )
+    transactions_from = relationship("Transaction", foreign_keys="Transaction.from_account_id", back_populates="from_account")
+    transactions_to = relationship("Transaction", foreign_keys="Transaction.to_account_id", back_populates="to_account")
 
     def __repr__(self):
         return f"<Account {self.account_number} ฿{self.balance}>"
 
-
 class Transaction(Base):
     __tablename__ = "transactions"
-
     id = Column(Integer, primary_key=True)
     from_account_id = Column(Integer, ForeignKey("accounts.id"))
     to_account_id = Column(Integer, ForeignKey("accounts.id"))
@@ -115,22 +95,14 @@ class Transaction(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime)
 
-    from_account = relationship(
-        "Account", foreign_keys=[from_account_id],
-        back_populates="transactions_from"
-    )
-    to_account = relationship(
-        "Account", foreign_keys=[to_account_id],
-        back_populates="transactions_to"
-    )
+    from_account = relationship("Account", foreign_keys=[from_account_id], back_populates="transactions_from")
+    to_account = relationship("Account", foreign_keys=[to_account_id], back_populates="transactions_to")
 
     def __repr__(self):
         return f"<Transaction ฿{self.amount} {self.status.value}>"
 
-
 class Card(Base):
     __tablename__ = "cards"
-
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     account_id = Column(Integer, ForeignKey("accounts.id"))
@@ -147,10 +119,8 @@ class Card(Base):
     def __repr__(self):
         return f"<Card {self.card_number} {self.status.value}>"
 
-
 class Subscription(Base):
     __tablename__ = "subscriptions"
-
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     account_id = Column(Integer, ForeignKey("accounts.id"))
@@ -165,10 +135,8 @@ class Subscription(Base):
     def __repr__(self):
         return f"<Subscription {self.merchant_name} ฿{self.amount}>"
 
-
 class Beneficiary(Base):
     __tablename__ = "beneficiaries"
-
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     nickname = Column(String(50))
@@ -183,10 +151,8 @@ class Beneficiary(Base):
     def __repr__(self):
         return f"<Beneficiary {self.nickname}>"
 
-
 class AuditLog(Base):
     __tablename__ = "audit_logs"
-
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     session_id = Column(String(50))
@@ -202,13 +168,8 @@ class AuditLog(Base):
 
     user = relationship("User", back_populates="audit_logs")
 
-    def __repr__(self):
-        return f"<AuditLog {self.action} {self.result}>"
-
-
 class Session(Base):
     __tablename__ = "sessions"
-
     id = Column(Integer, primary_key=True)
     session_id = Column(String(50), unique=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -218,5 +179,31 @@ class Session(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
 
-    def __repr__(self):
-        return f"<Session {self.session_id}>"
+class ScheduledTransfer(Base):
+    __tablename__ = "scheduled_transfers"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    to_account_id = Column(Integer, ForeignKey("accounts.id"))
+    amount = Column(Numeric(15, 2))
+    scheduled_date = Column(DateTime)
+    note = Column(String(100))
+    status = Column(String(20), default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class SplitBill(Base):
+    __tablename__ = "split_bills"
+    id = Column(Integer, primary_key=True)
+    creator_id = Column(Integer, ForeignKey("users.id"))
+    total_amount = Column(Numeric(15, 2))
+    split_type = Column(String(20))
+    description = Column(String(100))
+    status = Column(String(20), default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class BillParticipant(Base):
+    __tablename__ = "bill_participants"
+    id = Column(Integer, primary_key=True)
+    bill_id = Column(Integer, ForeignKey("split_bills.id"))
+    beneficiary_id = Column(Integer, ForeignKey("beneficiaries.id"))
+    amount_owed = Column(Numeric(15, 2))
+    has_paid = Column(Boolean, default=False)

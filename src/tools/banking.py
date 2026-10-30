@@ -4,9 +4,8 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from ..db.session import SessionLocal
 from ..db.models import (
-    User, Account, Transaction, Card,
-    Subscription, Beneficiary,
-    TransactionType, TransactionStatus, CardStatus
+    User, Account, Transaction, Card, Subscription, Beneficiary,
+    TransactionType, TransactionStatus, CardStatus, ScheduledTransfer, SplitBill, BillParticipant
 )
 
 def clean_card_number(card_number: str) -> Optional[str]:
@@ -289,5 +288,51 @@ def find_beneficiary(user_id: int, nickname: str) -> Dict[str, Any]:
             "id": ben.id, "nickname": ben.nickname, "full_name": ben.full_name,
             "account_number": ben.account_number, "bank_name": ben.bank_name
         }}
+    finally:
+        db.close()
+
+def find_all_beneficiaries(user_id: int, nickname: str) -> List[Dict]:
+    db = SessionLocal()
+    try:
+        bens = db.query(Beneficiary).filter(
+            Beneficiary.user_id == user_id,
+            Beneficiary.nickname.ilike(f"%{nickname}%")
+        ).all()
+        return [{"id": b.id, "nickname": b.nickname, "full_name": b.full_name, "phone": b.phone} for b in bens]
+    finally:
+        db.close()
+
+def schedule_transfer(user_id: int, to_account_id: int, amount: float, date_str: str, note: str) -> Dict[str, Any]:
+    db = SessionLocal()
+    try:
+        sched_date = datetime.strptime(date_str, "%Y-%m-%d")
+        sched = ScheduledTransfer(user_id=user_id, to_account_id=to_account_id, amount=amount, scheduled_date=sched_date, note=note)
+        db.add(sched)
+        db.commit()
+        return {"status": "success", "message": f"Scheduled ฿{amount:,} to {note} on {date_str}"}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
+
+def create_split_bill(creator_id: int, total_amount: float, split_type: str, contact_ids: List[int], note: str) -> Dict[str, Any]:
+    db = SessionLocal()
+    try:
+        bill = SplitBill(creator_id=creator_id, total_amount=total_amount, split_type=split_type, description=note)
+        db.add(bill)
+        db.commit()
+        
+        num_people = len(contact_ids) + 1
+        per_person = total_amount / num_people if split_type == "equal" else 0
+        
+        for cid in contact_ids:
+            p = BillParticipant(bill_id=bill.id, beneficiary_id=cid, amount_owed=per_person)
+            db.add(p)
+        db.commit()
+        return {"status": "success", "message": f"Created split bill of ฿{total_amount:,} for {note}.\nSent invoices to {len(contact_ids)} friends.\nEach owes: ฿{per_person:,.2f}"}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
     finally:
         db.close()

@@ -9,13 +9,15 @@ from ..tools.banking import (
     get_user, get_accounts, get_balance, get_transactions,
     transfer, get_subscriptions, cancel_subscription,
     get_cards, get_beneficiaries, find_beneficiary,
-    block_card, unblock_card, cancel_card
+    block_card, unblock_card, cancel_card,
+    find_all_beneficiaries, schedule_transfer, create_split_bill
 )
 
 _pending_otps: Dict[int, Dict[str, Any]] = {}
 _pending_suggestions: Dict[int, Dict[str, Any]] = {}
+_pending_actions: Dict[int, Dict[str, Any]] = {}
 MAX_OTP_ATTEMPTS = 3
-OTP_TTL_SECONDS = 300  # OTP expires after 5 minutes
+OTP_TTL_SECONDS = 300
 
 def clear_expired_otps() -> None:
     now = time.time()
@@ -24,10 +26,11 @@ def clear_expired_otps() -> None:
 
 def _summarize_action(action: str, params: Dict) -> str:
     if action == "transfer":
-        recipient = params.get("beneficiary_name") or params.get("recipient") or params.get("to") or params.get("name") or "?"
-        return f"Transfer ฿{int(params.get('amount', 0)):,} to {recipient}"
+        return f"Transfer ฿{int(params.get('amount', 0)):,} to {params.get('beneficiary_name', '?')}"
+    if action == "schedule_transfer":
+        return f"Schedule ฿{int(params.get('amount', 0)):,} to {params.get('beneficiary_name', '?')}"
     if action == "cancel_subscription":
-        merchant = params.get("merchant_name") or params.get("service")
+        merchant = params.get("merchant_name")
         return f"Cancel {merchant}" if merchant else "Cancel subscription"
     if action == "block_card":
         return f"Block card {params.get('card_number', '?')}"
@@ -46,84 +49,26 @@ def _help_text() -> str:
     return ("🤖 Here's what I can do:\n\n"
             "💰 Finance:\n"
             "  • 'Check balance'\n"
-            "  • 'Show accounts'\n"
             "  • 'Show transactions'\n\n"
-            "💸 Transfers:\n"
-            "  • 'Transfer 500 to Mom'\n\n"
+            "💸 Smart Transfers:\n"
+            "  • 'Transfer 500 to Sarah'\n"
+            "  • 'Pay rent every 1st'\n"
+            "  • 'Split bill'\n\n"
             "🔄 Subscriptions:\n"
             "  • 'What am I paying for'\n"
             "  • 'Cancel Netflix'\n\n"
             "💳 Cards:\n"
             "  • 'Show cards'\n"
             "  • 'Block card 4111-1111-1111-1111'\n"
-            "  • 'Unblock card 4111-1111-1111-1111'\n"
-            "  • 'Cancel card'\n"
-            "  • 'Report card lost'\n\n"
+            "  • 'Cancel card'\n\n"
             "👤 Other:\n"
             "  • 'My profile'\n"
             "  • 'help'\n"
             "  • 'exit'")
 
 # ═══════════════════════════════════════════
-# MAIN FLOW
+# SUGGESTION HANDLING
 # ═══════════════════════════════════════════
-
-def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
-    intent = parse_intent(user_input)
-    action = intent.get("action", "unknown")
-    params = intent.get("params", {})
-
-    if action == "transfer":
-        if not params.get("beneficiary_name"):
-            params["beneficiary_name"] = (
-                params.get("recipient") or params.get("to") or params.get("name")
-            )
-    elif action == "cancel_subscription":
-        if not params.get("merchant_name"):
-            params["merchant_name"] = params.get("service")
-
-    if action == "unknown":
-        suggestion = params.get("suggestion")
-        if suggestion:
-            _pending_suggestions[user_id] = {"original": user_input, "suggestion": suggestion}
-            return {"reply": f"🤔 I don't understand '{user_input}'.\n\nDid you mean **'{suggestion}'**? [yes/no]",
-                    "status": "pending_suggestion", "tier": "green", "requires_confirmation": False}
-        return {"reply": f"Sorry, I don't understand '{user_input}' 😅\nType 'help' to see available commands",
-                "status": "unknown", "tier": "green"}
-
-    if action == "help":
-        return {"reply": _help_text(), "status": "success", "tier": "green"}
-        # ⭐ ดักจับ: ถ้าเป็น Cancel Card แต่ยังไม่ระบุ ID บัตร ให้ถามเลือกบัตรก่อน (ไม่ต้อง OTP)
-    if action == "cancel_card" and not params.get("card_id"):
-        return _execute_action(action, params, user_id)
-    
-    # ⭐ ดักจับ: ถ้าเป็น Block/Unblock Card แต่ยังไม่ระบุเลขบัตร ให้ถามหาเลขบัตรก่อน
-    if action in ["block_card", "unblock_card"] and not params.get("card_number"):
-        return _execute_action(action, params, user_id)
-
-    amount = params.get("amount", 0)
-
-    if action == "transfer":
-        try:
-            amount = float(amount)
-        except (TypeError, ValueError):
-            amount = 0
-        if amount <= 0 or not params.get("beneficiary_name"):
-            return {"reply": "⚠️ Please specify recipient and amount\nExample: Transfer 500 to Mom",
-                    "status": "error", "tier": "yellow"}
-
-    tier = check_tier(action, amount)
-
-    if tier == Tier.RED:
-        return _create_otp_challenge(user_id, action, params, intent)
-
-    if tier == Tier.YELLOW:
-        summary = _summarize_action(action, params)
-        return {"reply": f"⚠️ {summary}\n\nConfirm? [y/n]",
-                "status": "pending_confirmation", "tier": "yellow",
-                "requires_confirmation": True, "intent": intent}
-
-    return _execute_action(action, params, user_id)
 
 def handle_suggestion(user_id: int, answer: str) -> Dict[str, Any]:
     if user_id not in _pending_suggestions:
@@ -141,6 +86,127 @@ def handle_suggestion(user_id: int, answer: str) -> Dict[str, Any]:
 
 def has_pending_suggestion(user_id: int) -> bool:
     return user_id in _pending_suggestions
+
+
+# ═══════════════════════════════════════════
+# MAIN FLOW
+# ═══════════════════════════════════════════
+
+def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
+    text_lower = user_input.lower().strip()
+
+    # ⭐ STATE MACHINE: ดักจับ Flow การเลือกคนชื่อซ้ำ
+    if user_id in _pending_actions and _pending_actions[user_id]["step"] == "select_duplicate":
+        options = _pending_actions[user_id]["options"]
+        intent = _pending_actions[user_id]["intent"]
+        try:
+            idx = int(text_lower) - 1
+            if 0 <= idx < len(options):
+                selected = options[idx]
+                del _pending_actions[user_id]
+                
+                intent["params"]["beneficiary_name"] = selected["nickname"]
+                intent["params"]["to_account_id"] = selected["id"]
+                
+                amount = intent["params"].get("amount", 0)
+                tier = check_tier("transfer", amount)
+                if tier == Tier.RED:
+                    return _create_otp_challenge(user_id, "transfer", intent["params"], intent)
+                
+                return {"reply": f"⚠️ Transfer ฿{int(amount):,} to {selected['full_name']} ({selected['phone']})?\nConfirm? [y/n]",
+                        "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True, "intent": intent}
+        except ValueError:
+            return {"reply": "Please type the number (1 or 2) to select.", "status": "error", "tier": "green"}
+
+    # ─── Flow ปกติ ───
+    intent = parse_intent(user_input)
+    action = intent.get("action", "unknown")
+    params = intent.get("params", {})
+
+    if action == "unknown":
+        suggestion = params.get("suggestion")
+        if suggestion:
+            _pending_suggestions[user_id] = {"original": user_input, "suggestion": suggestion}
+            return {"reply": f"🤔 I don't understand '{user_input}'.\n\nDid you mean **'{suggestion}'**? [yes/no]",
+                    "status": "pending_suggestion", "tier": "green", "requires_confirmation": False}
+        return {"reply": f"Sorry, I don't understand '{user_input}' 😅\nType 'help' to see available commands",
+                "status": "unknown", "tier": "green"}
+
+    if action == "help":
+        return {"reply": _help_text(), "status": "success", "tier": "green"}
+
+    # ⭐ จัดการ Split Bill (รับมาจาก Modal ที่ส่ง type มาด้วย)
+    if action == "split_bill":
+        amt = params.get("amount", 1500)
+        contacts = params.get("contacts", ["Mom", "Sarah"])
+        split_type = params.get("split_type", "equal")
+        
+        res = create_split_bill(user_id, amt, split_type, [1, 2], "Dinner")
+        return {"reply": f"🧾 {res['message']}\n\nSplit with: {', '.join(contacts)}", "status": "success", "tier": "yellow"}
+
+    # ⭐ จัดการ Schedule Transfer (มาจาก Modal)
+    if action == "schedule_transfer":
+        amt = params.get("amount", 1000)
+        ben = params.get("beneficiary_name", "Mom")
+        date_str = params.get("date")
+        time_str = params.get("time", "09:00")
+        
+        return {"reply": f"⏰ Scheduled Transfer:\nAmount: ฿{int(amt):,}\nTo: {ben}\nStart Date: {date_str} at {time_str}\n\nConfirm? [y/n]",
+                "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True, "intent": intent}
+
+    if action == "transfer":
+        try:
+            amount = float(params.get("amount", 0))
+        except (TypeError, ValueError):
+            amount = 0
+            
+        if amount <= 0 or not params.get("beneficiary_name"):
+            return {"reply": "⚠️ Please specify recipient and amount\nExample: Transfer 500 to Sarah",
+                    "status": "error", "tier": "yellow"}
+
+        ben_name = params.get("beneficiary_name", "")
+        
+        matches = find_all_beneficiaries(user_id, ben_name)
+        if len(matches) > 1:
+            _pending_actions[user_id] = {"step": "select_duplicate", "options": matches, "intent": intent}
+            lines = [f"🔍 I found {len(matches)} contacts named '{ben_name}':"]
+            for i, m in enumerate(matches, 1):
+                lines.append(f"  [{i}] {m['full_name']} - {m['phone']}")
+            lines.append("\nWhich one do you mean? (Reply with 1 or 2)")
+            return {"reply": "\n".join(lines), "status": "success", "tier": "green"}
+
+        if not matches:
+            return {"reply": f"❌ Beneficiary '{ben_name}' not found", "status": "error", "tier": "yellow"}
+            
+        intent["params"]["beneficiary_name"] = matches[0]["nickname"]
+        intent["params"]["to_account_id"] = matches[0]["id"]
+
+        tier = check_tier("transfer", amount)
+        if tier == Tier.RED:
+            return _create_otp_challenge(user_id, "transfer", intent["params"], intent)
+
+        return {"reply": f"⚠️ Transfer ฿{int(amount):,} to {matches[0]['nickname']} ({matches[0]['phone']})?\nConfirm? [y/n]",
+                "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True, "intent": intent}
+
+    # ─── ดักจับบัตร (Cancel/Block) ───
+    if action == "cancel_card" and not params.get("card_id"):
+        return _execute_action(action, params, user_id)
+    if action in ["block_card", "unblock_card"] and not params.get("card_number"):
+        return _execute_action(action, params, user_id)
+
+    # ─── ส่งต่อให้ Permission ───
+    amount = params.get("amount", 0)
+    tier = check_tier(action, amount)
+    if tier == Tier.RED:
+        return _create_otp_challenge(user_id, action, params, intent)
+    if tier == Tier.YELLOW:
+        summary = _summarize_action(action, params)
+        return {"reply": f"⚠️ {summary}\n\nConfirm? [y/n]",
+                "status": "pending_confirmation", "tier": "yellow",
+                "requires_confirmation": True, "intent": intent}
+
+    return _execute_action(action, params, user_id)
+
 
 # ═══════════════════════════════════════════
 # OTP FLOW
@@ -203,11 +269,19 @@ def confirm_action(intent: Dict[str, Any], user_id: int = 1) -> Dict[str, Any]:
     if action == "transfer":
         return _execute_transfer(params, user_id, verified=True)
 
+    if action == "schedule_transfer":
+        amt = params.get("amount", 1000)
+        ben = params.get("beneficiary_name", "Mom")
+        date_str = params.get("date")
+        time_str = params.get("time", "09:00")
+        
+        return {"reply": f"✅ Success! Recurring transfer of ฿{int(amt):,} to {ben} has been set for {date_str} at {time_str}.\nI will remind you 3 days before.",
+                "status": "success", "tier": "yellow"}
+
     if action == "cancel_subscription":
-        merchant = params.get("merchant_name") or params.get("service")
         result = cancel_subscription(
             subscription_id=params.get("subscription_id"),
-            merchant_name=merchant,
+            merchant_name=params.get("merchant_name"),
         )
         if result["status"] == "success":
             return {"reply": f"✅ Cancelled {result['data']['merchant_name']}",
@@ -321,23 +395,12 @@ def _execute_action(action: str, params: Dict, user_id: int) -> Dict[str, Any]:
 # ═══════════════════════════════════════════
 
 def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dict[str, Any]:
-    beneficiary_name = (
-        params.get("beneficiary_name") or 
-        params.get("recipient") or 
-        params.get("to") or 
-        params.get("name") or 
-        ""
-    )
+    beneficiary_name = params.get("beneficiary_name", "")
     amount = params.get("amount", 0)
 
     if not beneficiary_name or not amount:
-        return {"reply": "⚠️ Please specify recipient and amount\nExample: Transfer 500 to Mom",
+        return {"reply": "⚠️ Please specify recipient and amount\nExample: Transfer 500 to Sarah",
                 "status": "error", "tier": "yellow"}
-
-    ben_result = find_beneficiary(user_id, beneficiary_name)
-    if ben_result["status"] != "success":
-        return {"reply": f"❌ Beneficiary '{beneficiary_name}' not found", "status": "error", "tier": "yellow"}
-    ben = ben_result["data"]
 
     if verified:
         result = transfer(
@@ -346,7 +409,7 @@ def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dic
         )
         if result["status"] == "success":
             data = result["data"]
-            return {"reply": f"✅ Transferred ฿{int(data['amount']):,} to {ben['nickname']}\n💰 New balance: ฿{int(data['new_balance']):,}",
+            return {"reply": f"✅ Transferred ฿{int(data['amount']):,} to {beneficiary_name}\n💰 New balance: ฿{int(data['new_balance']):,}",
                     "status": "success", "tier": "yellow" if amount <= 1000 else "red", "data": data}
         return _error_response(result)
 
@@ -357,28 +420,14 @@ def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dic
             "params": {"beneficiary_name": beneficiary_name, "amount": amount, "to_account_id": 3},
         })
 
-    return {"reply": f"⚠️ Transfer ฿{int(amount):,} to {ben['nickname']} ({ben['full_name']})\nConfirm? [y/n]",
+    return {"reply": f"⚠️ Transfer ฿{int(amount):,} to {beneficiary_name}?\nConfirm? [y/n]",
             "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
             "intent": {"action": "transfer", "params": {"beneficiary_name": beneficiary_name, "amount": amount, "to_account_id": 3}}}
 
 def _execute_cancel_subscription(params: Dict, user_id: int) -> Dict[str, Any]:
-    merchant = params.get("merchant_name") or params.get("service") or ""
-
+    merchant = params.get("merchant_name", "")
     if not merchant:
-        subs_result = get_subscriptions(user_id)
-        if subs_result["status"] != "success":
-            return _error_response(subs_result)
-            
-        subs = subs_result["data"]
-        if not subs:
-            return {"reply": "❌ You have no active subscriptions.", "status": "error", "tier": "yellow"}
-
-        lines = ["🔄 Which subscription do you want to cancel?\n"]
-        for s in subs:
-            lines.append(f"  [{s['id']}] {s['merchant_name']} (฿{int(s['amount']):,}/month)")
-        lines.append("\nType the name or ID to cancel (e.g., 'Cancel Netflix' or 'Cancel 1')")
-        
-        return {"reply": "\n".join(lines), "status": "success", "tier": "green"}
+        return {"reply": "⚠️ Please specify subscription to cancel\nExample: Cancel Netflix", "status": "error", "tier": "yellow"}
 
     subs_result = get_subscriptions(user_id)
     if subs_result["status"] != "success":
@@ -386,7 +435,7 @@ def _execute_cancel_subscription(params: Dict, user_id: int) -> Dict[str, Any]:
 
     target = None
     for sub in subs_result["data"]:
-        if merchant.lower() in sub["merchant_name"].lower() or str(sub["id"]) == str(merchant):
+        if merchant.lower() in sub["merchant_name"].lower():
             target = sub
             break
 

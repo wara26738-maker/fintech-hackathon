@@ -9,13 +9,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SYSTEM_PROMPT = """You are an intent parser for a banking AI agent.
-Convert user messages (Thai or English) into JSON.
-Available actions: get_balance, get_accounts, get_transactions, get_cards, get_subscriptions, get_beneficiaries, transfer, cancel_subscription, block_card, unblock_card, cancel_card, report_card_lost, get_user, help, unknown.
-Strictly use these parameter keys:
-- For transfer: {"beneficiary_name": "mom", "amount": 500}
-- For cancel_subscription: {"merchant_name": "Netflix"} OR {"subscription_id": 1}
-- For block_card/unblock_card: {"card_number": "4111..."}
-
+Convert user messages into JSON.
+Actions: get_balance, get_accounts, get_transactions, get_cards, get_subscriptions, get_beneficiaries, transfer, cancel_subscription, block_card, unblock_card, cancel_card, report_card_lost, get_user, help, unknown, split_bill, schedule_transfer
 Output JSON: {"action": "...", "params": {...}, "confidence": 0.0-1.0}
 """
 
@@ -56,10 +51,26 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
     if amount_match:
         amount = int(amount_match.group(1).replace(',', ''))
 
-    # จับเฉพาะตัวเลข 16 หลัก (มองข้ามขีดกลาง/เว้นวรรค)
     card_match = re.search(r'(\d(?:[-\s]?\d){15})', text)
-    # จับ ID บัตร กรณีพิมพ์ "cancel card 1" (ตัวเลข 1 หลัก)
     card_id_match = re.search(r'(?:card|บัตร)\s+(\d+)', text_lower)
+
+    # ⭐ จับ Split Bill จาก Modal: "Split 1500 with Mom, Sarah Work using equal"
+    split_match = re.search(r'split\s+(\d+)\s+with\s+(.+?)\s+using\s+(equal|percentage)', text_lower)
+    if split_match:
+        amt = float(split_match.group(1))
+        contacts_str = split_match.group(2)
+        split_type = split_match.group(3)
+        contacts = [c.strip().capitalize() for c in contacts_str.split(',')]
+        return {"action": "split_bill", "params": {"amount": amt, "contacts": contacts, "split_type": split_type}, "confidence": 0.95}
+
+    # ⭐ จับ Schedule จาก Modal: "Schedule 1000 to Mom on 2026-11-01 at 09:00"
+    rec_match = re.search(r'schedule\s+(\d+)\s+to\s+([a-zA-Z]+)\s+on\s+(\d{4}-\d{2}-\d{2})\s+at\s+(\d{2}:\d{2})', text_lower)
+    if rec_match:
+        amt = float(rec_match.group(1))
+        recipient = rec_match.group(2).capitalize()
+        date_str = rec_match.group(3)
+        time_str = rec_match.group(4)
+        return {"action": "schedule_transfer", "params": {"amount": amt, "beneficiary_name": recipient, "date": date_str, "time": time_str}, "confidence": 0.95}
 
     if any(k in text_lower for k in ["ยอดเงิน", "บาลาน", "balance", "เหลือเท่าไหร่", "มีเงินเท่าไหร่", "balan"]):
         return {"action": "get_balance", "params": {}, "confidence": 0.9}
@@ -76,62 +87,47 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
     if any(k in text_lower for k in ["contact", "contacts", "ผู้รับโอน", "beneficiary", "beneficiaries", "รายชื่อ", "คนที่โอนด้วย"]):
         return {"action": "get_beneficiaries", "params": {}, "confidence": 0.9}
 
-    # ⭐ สำคัญมาก: ต้องเช็ค Cancel Card ก่อน Cancel Subscription เสมอ
     if re.search(r'cancel.*card|card.*cancel|ยกเลิก.*บัตร|บัตร.*ยกเลิก', text_lower):
         params = {}
-        if card_match:
-            params["card_number"] = card_match.group(1)
-        elif card_id_match:
-            params["card_id"] = int(card_id_match.group(1))
+        if card_match: params["card_number"] = card_match.group(1)
+        elif card_id_match: params["card_id"] = int(card_id_match.group(1))
         return {"action": "cancel_card", "params": params, "confidence": 0.85}
 
-    # ─── Unblock Card ───
     if re.search(r'unblock|unblok|ปลดบล็อก|ปลดอายัด', text_lower):
         params = {}
-        if card_match:
-            params["card_number"] = card_match.group(1)
+        if card_match: params["card_number"] = card_match.group(1)
         return {"action": "unblock_card", "params": params, "confidence": 0.85}
 
-    # ─── Block Card ───
     if re.search(r'block|blok|บล็อก|อายัด', text_lower):
         params = {}
-        if card_match:
-            params["card_number"] = card_match.group(1)
+        if card_match: params["card_number"] = card_match.group(1)
         return {"action": "block_card", "params": params, "confidence": 0.85}
 
-    # ─── Cancel Subscription ───
     if any(k in text_lower for k in ["ยกเลิก", "cancel"]):
-        # ⭐ NEW: Catch if the user typed an ID number (e.g., "Cancel 1")
-        sub_id_match = re.search(r'cancel\s+(?:sub(?:scription)?\s+)?(\d+)', text_lower)
-        if sub_id_match:
-             return {"action": "cancel_subscription", "params": {"subscription_id": int(sub_id_match.group(1))}, "confidence": 0.85}
-             
         merchants = ["netflix", "spotify", "icloud", "youtube", "disney"]
         for m in merchants:
             if m in text_lower:
                 return {"action": "cancel_subscription", "params": {"merchant_name": m.capitalize()}, "confidence": 0.85}
         return {"action": "cancel_subscription", "params": {}, "confidence": 0.7}
 
-    # ─── Report Card Lost ───
     if any(k in text_lower for k in ["บัตรหาย", "card lost", "lost card", "lost"]):
         return {"action": "report_card_lost", "params": {}, "confidence": 0.9}
 
-    # ─── Cards ───
     if any(k in text_lower for k in ["บัตร", "card"]):
         return {"action": "get_cards", "params": {}, "confidence": 0.9}
 
-    # ─── Transfer ───
+    if any(k in text_lower for k in ["split", "หารบิล", "หาร", "แบ่งจ่าย"]):
+        return {"action": "split_bill", "params": {}, "confidence": 0.85}
+
     if re.search(r'trans?f|tranfer|tranfers|trnsfer|โอน|ส่งเงิน|โอนเงิน|send money', text_lower):
         beneficiary = None
-        for name in ["แม่", "mom", "พ่อ", "dad", "แฟน", "wife"]:
+        for name in ["sarah", "แม่", "mom", "พ่อ", "dad", "แฟน", "wife"]:
             if name in text_lower:
-                beneficiary = name
+                beneficiary = name.capitalize()
                 break
         params = {}
-        if beneficiary:
-            params["beneficiary_name"] = beneficiary
-        if amount:
-            params["amount"] = amount
+        if beneficiary: params["beneficiary_name"] = beneficiary
+        if amount: params["amount"] = amount
         return {"action": "transfer", "params": params, "confidence": 0.85}
 
     if any(k in text_lower for k in ["ข้อมูล", "profile", "user", "ฉัน"]):
@@ -143,11 +139,10 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
     suggestion = find_similar_word(text)
     return {"action": "unknown", "params": {"original": text, "suggestion": suggestion}, "confidence": 0.0}
 
-
 def parse_with_deepseek(text: str) -> Dict[str, Any]:
     try:
         from openai import OpenAI
-        client = OpenAI(# ⭐ ดึง API Key จาก .env เท่านั้น
+        client = OpenAI(
             api_key=os.getenv("DEEPSEEK_API_KEY"),
             base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
         )
@@ -161,9 +156,8 @@ def parse_with_deepseek(text: str) -> Dict[str, Any]:
         content = content.replace("```json", "").replace("```", "").strip()
         return json.loads(content)
     except Exception as e:
-        print(f"🚨 DEEPSEEK ERROR: {e}")
-        return {"action": "unknown", "params": {"error": str(e)}, "confidence": 0.0}
-
+        print(f"⚠️ DeepSeek API Error: {e}")
+        return parse_with_mock(text)
 
 def parse_with_openai(text: str) -> Dict[str, Any]:
     try:
@@ -178,8 +172,7 @@ def parse_with_openai(text: str) -> Dict[str, Any]:
         )
         return json.loads(response.choices[0].message.content)
     except Exception as e:
-        return {"action": "unknown", "params": {"error": str(e)}, "confidence": 0.0}
-
+        return parse_with_mock(text)
 
 def parse_intent(text: str) -> Dict[str, Any]:
     if not text or not text.strip():
@@ -191,7 +184,6 @@ def parse_intent(text: str) -> Dict[str, Any]:
         return parse_with_deepseek(text)
     else:
         return parse_with_mock(text)
-
 
 def describe_intent(intent: Dict[str, Any]) -> str:
     action = intent.get("action", "unknown")
