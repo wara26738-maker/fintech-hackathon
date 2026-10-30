@@ -1,6 +1,4 @@
 # src/tools/banking.py
-# Mock Banking Tools
-
 import re
 from datetime import datetime
 from typing import Optional, List, Dict, Any
@@ -11,25 +9,20 @@ from ..db.models import (
     TransactionType, TransactionStatus, CardStatus
 )
 
-#----------------------------------------------------------------------------------------------------------------------------
-def clean_card_number(card_number: str) -> Optional[str]: #check card(will be called in card action)
-    """Return only the digits if the number has the right length, else None."""
+def clean_card_number(card_number: str) -> Optional[str]:
     digits = re.sub(r"\D", "", str(card_number))
     if len(digits) != 16:
         return None
     return digits
-#----------------------------------------------------------------------------------------------------------------------------
-def find_card(db, digits: str, user_id: Optional[int] = None):
-    """Return the matching Card, or None if there isn't one."""
-    query = db.query(Card)
-    if user_id is not None:  # only search this user's cards
-        query = query.filter(Card.user_id == user_id)
 
+def find_card(db, digits: str, user_id: Optional[int] = None):
+    query = db.query(Card)
+    if user_id is not None:
+        query = query.filter(Card.user_id == user_id)
     for c in query.all():
         if c.card_number and re.sub(r"\D", "", c.card_number) == digits:
             return c
     return None
-#----------------------------------------------------------------------------------------------------------------------------
 
 def get_user(user_id: int) -> Dict[str, Any]:
     db = SessionLocal()
@@ -44,7 +37,6 @@ def get_user(user_id: int) -> Dict[str, Any]:
         }}
     finally:
         db.close()
-
 
 def get_accounts(user_id: int) -> Dict[str, Any]:
     db = SessionLocal()
@@ -61,7 +53,6 @@ def get_accounts(user_id: int) -> Dict[str, Any]:
     finally:
         db.close()
 
-
 def get_balance(account_id: int) -> Dict[str, Any]:
     db = SessionLocal()
     try:
@@ -74,7 +65,6 @@ def get_balance(account_id: int) -> Dict[str, Any]:
         }}
     finally:
         db.close()
-
 
 def get_transactions(account_id: int, limit: int = 10) -> Dict[str, Any]:
     db = SessionLocal()
@@ -93,7 +83,6 @@ def get_transactions(account_id: int, limit: int = 10) -> Dict[str, Any]:
         ]}
     finally:
         db.close()
-
 
 def transfer(
     from_account_id: int,
@@ -141,7 +130,6 @@ def transfer(
     finally:
         db.close()
 
-
 def get_subscriptions(user_id: int) -> Dict[str, Any]:
     db = SessionLocal()
     try:
@@ -158,14 +146,12 @@ def get_subscriptions(user_id: int) -> Dict[str, Any]:
     finally:
         db.close()
 
-
 def cancel_subscription(subscription_id: int = None, merchant_name: str = None) -> Dict[str, Any]:
     db = SessionLocal()
     try:
         if subscription_id:
             sub = db.query(Subscription).filter(Subscription.id == subscription_id).first()
         elif merchant_name:
-            # ⭐ ค้นหาด้วยชื่อร้าน (ILIKE ช่วยให้ค้นหาไม่สนตัวพิมพ์เล็ก-ใหญ่)
             sub = db.query(Subscription).filter(
                 Subscription.merchant_name.ilike(f"%{merchant_name}%")
             ).first()
@@ -187,7 +173,6 @@ def cancel_subscription(subscription_id: int = None, merchant_name: str = None) 
     finally:
         db.close()
 
-
 def get_cards(user_id: int) -> Dict[str, Any]:
     db = SessionLocal()
     try:
@@ -203,16 +188,14 @@ def get_cards(user_id: int) -> Dict[str, Any]:
     finally:
         db.close()
 
-#-------------------------------------------------------------------แก้ block กับ unblock card ให้เป็นการเรียนฟังชั่น clean_card_number และ find_card เพื่อให้สามารถใช้ได้ทั้ง card_number และ card_id
 def block_card(card_number: str, user_id: Optional[int] = None) -> Dict[str, Any]:
     digits = clean_card_number(card_number)
     if digits is None:
-        return {"status": "error", "message": f"Please enter all {16} digits of the card number"}
+        return {"status": "error", "message": "Please enter all 16 digits of the card number"}
 
     db = SessionLocal()
     try:
         card = find_card(db, digits, user_id)
-
         if not card:
             return {"status": "error", "message": "Card not found"}
         if card.status == CardStatus.BLOCKED:
@@ -232,17 +215,14 @@ def block_card(card_number: str, user_id: Optional[int] = None) -> Dict[str, Any
     finally:
         db.close()
 
-#-------------------------------------------------------------------------------------------------------------------
-
 def unblock_card(card_number: str, user_id: Optional[int] = None) -> Dict[str, Any]:
     digits = clean_card_number(card_number)
     if digits is None:
-        return {"status": "error", "message": f"Please enter all {16} digits of the card number"}
+        return {"status": "error", "message": "Please enter all 16 digits of the card number"}
 
     db = SessionLocal()
     try:
         card = find_card(db, digits, user_id)
-
         if not card:
             return {"status": "error", "message": "Card not found"}
         if card.status != CardStatus.BLOCKED:
@@ -261,7 +241,6 @@ def unblock_card(card_number: str, user_id: Optional[int] = None) -> Dict[str, A
         return {"status": "error", "message": str(e)}
     finally:
         db.close()
-#---------------------------------------------------------------------------------------------------------------------
 
 def cancel_card(card_id: int) -> Dict[str, Any]:
     db = SessionLocal()
@@ -284,7 +263,6 @@ def cancel_card(card_id: int) -> Dict[str, Any]:
     finally:
         db.close()
 
-
 def get_beneficiaries(user_id: int) -> Dict[str, Any]:
     db = SessionLocal()
     try:
@@ -297,7 +275,6 @@ def get_beneficiaries(user_id: int) -> Dict[str, Any]:
         ]}
     finally:
         db.close()
-
 
 def find_beneficiary(user_id: int, nickname: str) -> Dict[str, Any]:
     db = SessionLocal()

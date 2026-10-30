@@ -12,23 +12,15 @@ from ..tools.banking import (
     block_card, unblock_card, cancel_card
 )
 
-# ─── Globals (defined BEFORE any function that uses them) ───
 _pending_otps: Dict[int, Dict[str, Any]] = {}
 _pending_suggestions: Dict[int, Dict[str, Any]] = {}
 MAX_OTP_ATTEMPTS = 3
 OTP_TTL_SECONDS = 300  # OTP expires after 5 minutes
 
-
-# ═══════════════════════════════════════════
-# HELPERS
-# ═══════════════════════════════════════════
-
 def clear_expired_otps() -> None:
-    """Remove expired OTPs from memory."""
     now = time.time()
     for uid in [u for u, p in _pending_otps.items() if now > p["expires_at"]]:
         del _pending_otps[uid]
-
 
 def _summarize_action(action: str, params: Dict) -> str:
     if action == "transfer":
@@ -46,11 +38,8 @@ def _summarize_action(action: str, params: Dict) -> str:
         return "Report card lost"
     return f"Perform action: {action}"
 
-
 def _error_response(result: Dict) -> Dict[str, Any]:
-    return {"reply": f"❌ {result.get('message', 'An error occurred')}",
-            "status": "error", "tier": "green"}
-
+    return {"reply": f"❌ {result.get('message', 'An error occurred')}", "status": "error", "tier": "green"}
 
 def _help_text() -> str:
     return ("🤖 Here's what I can do:\n\n"
@@ -74,62 +63,6 @@ def _help_text() -> str:
             "  • 'help'\n"
             "  • 'exit'")
 
-
-# ═══════════════════════════════════════════
-# CARD EXECUTORS
-# ═══════════════════════════════════════════
-
-def _execute_block_card(params: Dict, user_id: int) -> Dict[str, Any]:
-    card_number = params.get("card_number")
-    if not card_number:
-        return {"reply": "💳 Please enter the 16-digit card number you want to block.\nExample: Block card 4111-1111-1111-1111",
-                "status": "success", "tier": "green"}
-    return {"reply": f"⚠️ Block card {card_number}?\nConfirm? [y/n]",
-            "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
-            "intent": {"action": "block_card", "params": {"card_number": card_number}}}
-
-
-def _execute_unblock_card(params: Dict, user_id: int) -> Dict[str, Any]:
-    card_number = params.get("card_number")
-    if not card_number:
-        return {"reply": "💳 Please enter the 16-digit card number you want to unblock.\nExample: Unblock card 4111-1111-1111-1111",
-                "status": "success", "tier": "green"}
-    return {"reply": f"⚠️ Unblock card {card_number}?\nConfirm? [y/n]",
-            "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
-            "intent": {"action": "unblock_card", "params": {"card_number": card_number}}}
-
-
-def _execute_cancel_card(params: Dict, user_id: int) -> Dict[str, Any]:
-    cards_result = get_cards(user_id)
-    if cards_result["status"] != "success":
-        return _error_response(cards_result)
-
-    cards = cards_result["data"]
-    if not cards:
-        return {"reply": "❌ No cards found", "status": "error", "tier": "yellow"}
-
-    card_id = params.get("card_id")
-
-    if card_id:
-        target = next((c for c in cards if c["id"] == card_id), None)
-        if not target:
-            return {"reply": f"❌ Card #{card_id} not found", "status": "error", "tier": "yellow"}
-        return {"reply": f"⚠️ Cancel card {target['card_number']} ({target['card_type']})?\nConfirm? [y/n]",
-                "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
-                "intent": {"action": "cancel_card", "params": {"card_id": target["id"]}}}
-
-    active_cards = [c for c in cards if c["status"] == "active"]
-    if not active_cards:
-        return {"reply": "❌ No active cards to cancel", "status": "error", "tier": "yellow"}
-
-    lines = ["💳 Which card do you want to cancel?\n"]
-    for c in active_cards:
-        lines.append(f"  [{c['id']}] {c['card_number']} ({c['card_type']})")
-    lines.append("\nType the card ID (e.g., 'cancel card 1')")
-
-    return {"reply": "\n".join(lines), "status": "success", "tier": "green"}
-
-
 # ═══════════════════════════════════════════
 # MAIN FLOW
 # ═══════════════════════════════════════════
@@ -151,11 +84,11 @@ def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
     if action == "help":
         return {"reply": _help_text(), "status": "success", "tier": "green"}
 
-    # Cancel Card without ID → list cards to choose (no OTP)
+    # ⭐ ดักจับ: ถ้าเป็น Cancel Card แต่ยังไม่ระบุ ID บัตร ให้ถามเลือกบัตรก่อน (ไม่ต้อง OTP)
     if action == "cancel_card" and not params.get("card_id"):
         return _execute_action(action, params, user_id)
 
-    # Block/Unblock without card number → ask for number (no OTP)
+    # ⭐ ดักจับ: ถ้าเป็น Block/Unblock Card แต่ยังไม่ระบุเลขบัตร ให้ถามหาเลขบัตรก่อน
     if action in ["block_card", "unblock_card"] and not params.get("card_number"):
         return _execute_action(action, params, user_id)
 
@@ -183,7 +116,6 @@ def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
 
     return _execute_action(action, params, user_id)
 
-
 def handle_suggestion(user_id: int, answer: str) -> Dict[str, Any]:
     if user_id not in _pending_suggestions:
         return {"reply": "No pending suggestion.", "status": "error", "tier": "green"}
@@ -198,10 +130,8 @@ def handle_suggestion(user_id: int, answer: str) -> Dict[str, Any]:
         return {"reply": "OK. Please type again.", "status": "success", "tier": "green"}
     return {"reply": "Please answer 'yes' or 'no'.", "status": "error", "tier": "green"}
 
-
 def has_pending_suggestion(user_id: int) -> bool:
     return user_id in _pending_suggestions
-
 
 # ═══════════════════════════════════════════
 # OTP FLOW
@@ -211,42 +141,32 @@ def _create_otp_challenge(user_id: int, action: str, params: Dict, intent: Dict)
     clear_expired_otps()
     otp = f"{random.randint(100000, 999999)}"
     _pending_otps[user_id] = {
-        "otp": otp,
-        "intent": intent,
-        "attempts": 0,
+        "otp": otp, "intent": intent, "attempts": 0,
         "expires_at": time.time() + OTP_TTL_SECONDS,
     }
     summary = _summarize_action(action, params)
     return {"reply": (f"🔴 HIGH-RISK ACTION\n{summary}\n\n"
                       f"📱 OTP sent to your phone.\n"
                       f"🔑 Demo OTP: {otp}\n\n"
-                      f"Please enter the 6-digit OTP within {OTP_TTL_SECONDS // 60} minutes(DEMO):"),
+                      f"Please enter the 6-digit OTP:"),
             "status": "pending_mfa", "tier": "red", "requires_mfa": True, "intent": intent}
-
 
 def verify_otp(user_id: int, otp: str) -> Dict[str, Any]:
     if user_id not in _pending_otps:
         return {"reply": "❌ No pending OTP.", "status": "error", "tier": "red"}
-
     pending = _pending_otps[user_id]
 
-    # Check expiry FIRST
     if time.time() > pending["expires_at"]:
         del _pending_otps[user_id]
-        return {"reply": "⌛ OTP expired. Please start the action again.",
-                "status": "error", "tier": "red"}
+        return {"reply": "⌛ OTP expired. Please start the action again.", "status": "error", "tier": "red"}
 
     if otp.strip() != pending["otp"]:
         pending["attempts"] += 1
         remaining = MAX_OTP_ATTEMPTS - pending["attempts"]
         if remaining <= 0:
             del _pending_otps[user_id]
-            return {"reply": "🔒 Too many failed attempts. Please start the action again.",
-                    "status": "error", "tier": "red"}
-        secs_left = max(0, int(pending["expires_at"] - time.time()))
-        return {"reply": f"❌ Invalid OTP. {remaining} attempts remaining "
-                         f"(expires in {secs_left}s).",
-                "status": "error", "tier": "red"}
+            return {"reply": "🔒 Too many failed attempts. Please start again.", "status": "error", "tier": "red"}
+        return {"reply": f"❌ Invalid OTP. {remaining} attempts remaining.", "status": "error", "tier": "red"}
 
     intent = pending["intent"]
     del _pending_otps[user_id]
@@ -262,7 +182,6 @@ def verify_otp(user_id: int, otp: str) -> Dict[str, Any]:
 
     result["reply"] = "✅ OTP verified!\n\n" + result["reply"]
     return result
-
 
 # ═══════════════════════════════════════════
 # CONFIRMATION EXECUTOR
@@ -310,7 +229,6 @@ def confirm_action(intent: Dict[str, Any], user_id: int = 1) -> Dict[str, Any]:
         return _error_response(result)
 
     return {"reply": "❌ Cannot perform this action", "status": "error", "tier": "yellow"}
-
 
 # ═══════════════════════════════════════════
 # READ-ONLY / DISPATCH EXECUTOR
@@ -383,12 +301,10 @@ def _execute_action(action: str, params: Dict, user_id: int) -> Dict[str, Any]:
         if action == "report_card_lost":
             return {"reply": "✅ Card reported as lost.", "status": "success", "tier": "red"}
 
-        return {"reply": f"Sorry, action '{action}' is not supported yet",
-                "status": "unsupported", "tier": "green"}
+        return {"reply": f"Sorry, action '{action}' is not supported yet", "status": "unsupported", "tier": "green"}
 
     except Exception as e:
         return {"reply": f"❌ Error: {str(e)}", "status": "error", "tier": "green"}
-
 
 # ═══════════════════════════════════════════
 # ACTION-SPECIFIC EXECUTORS
@@ -404,25 +320,18 @@ def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dic
 
     ben_result = find_beneficiary(user_id, beneficiary_name)
     if ben_result["status"] != "success":
-        return {"reply": f"❌ Beneficiary '{beneficiary_name}' not found",
-                "status": "error", "tier": "yellow"}
+        return {"reply": f"❌ Beneficiary '{beneficiary_name}' not found", "status": "error", "tier": "yellow"}
     ben = ben_result["data"]
 
     if verified:
         result = transfer(
-            from_account_id=1,
-            to_account_id=params.get("to_account_id", 3),
-            amount=amount,
-            note=beneficiary_name,
-            category="transfer",
+            from_account_id=1, to_account_id=params.get("to_account_id", 3),
+            amount=amount, note=beneficiary_name, category="transfer",
         )
         if result["status"] == "success":
             data = result["data"]
-            return {"reply": f"✅ Transferred ฿{int(data['amount']):,} to {ben['nickname']}\n"
-                             f"💰 New balance: ฿{int(data['new_balance']):,}",
-                    "status": "success",
-                    "tier": "yellow" if amount <= 1000 else "red",
-                    "data": data}
+            return {"reply": f"✅ Transferred ฿{int(data['amount']):,} to {ben['nickname']}\n💰 New balance: ฿{int(data['new_balance']):,}",
+                    "status": "success", "tier": "yellow" if amount <= 1000 else "red", "data": data}
         return _error_response(result)
 
     tier = check_tier("transfer", amount)
@@ -434,15 +343,12 @@ def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dic
 
     return {"reply": f"⚠️ Transfer ฿{int(amount):,} to {ben['nickname']} ({ben['full_name']})\nConfirm? [y/n]",
             "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
-            "intent": {"action": "transfer",
-                       "params": {"beneficiary_name": beneficiary_name, "amount": amount, "to_account_id": 3}}}
-
+            "intent": {"action": "transfer", "params": {"beneficiary_name": beneficiary_name, "amount": amount, "to_account_id": 3}}}
 
 def _execute_cancel_subscription(params: Dict, user_id: int) -> Dict[str, Any]:
     merchant = params.get("merchant_name", "")
     if not merchant:
-        return {"reply": "⚠️ Please specify subscription to cancel\nExample: Cancel Netflix",
-                "status": "error", "tier": "yellow"}
+        return {"reply": "⚠️ Please specify subscription to cancel\nExample: Cancel Netflix", "status": "error", "tier": "yellow"}
 
     subs_result = get_subscriptions(user_id)
     if subs_result["status"] != "success":
@@ -455,19 +361,58 @@ def _execute_cancel_subscription(params: Dict, user_id: int) -> Dict[str, Any]:
             break
 
     if not target:
-        return {"reply": f"❌ Subscription '{merchant}' not found",
-                "status": "error", "tier": "yellow"}
+        return {"reply": f"❌ Subscription '{merchant}' not found", "status": "error", "tier": "yellow"}
 
     return {
         "reply": f"⚠️ Cancel {target['merchant_name']} (฿{int(target['amount']):,}/month)\nConfirm? [y/n]",
-        "status": "pending_confirmation",
-        "tier": "yellow",
-        "requires_confirmation": True,
-        "intent": {
-            "action": "cancel_subscription",
-            "params": {
-                "subscription_id": target["id"],
-                "merchant_name": target["merchant_name"],
-            },
-        },
+        "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
+        "intent": {"action": "cancel_subscription",
+                   "params": {"subscription_id": target["id"], "merchant_name": target["merchant_name"]}},
     }
+
+def _execute_block_card(params: Dict, user_id: int) -> Dict[str, Any]:
+    card_number = params.get("card_number")
+    if not card_number:
+        return {"reply": "💳 Please enter the 16-digit card number you want to block.\nExample: Block card 4111-1111-1111-1111",
+                "status": "success", "tier": "green"}
+    return {"reply": f"⚠️ Block card {card_number}?\nConfirm? [y/n]",
+            "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
+            "intent": {"action": "block_card", "params": {"card_number": card_number}}}
+
+def _execute_unblock_card(params: Dict, user_id: int) -> Dict[str, Any]:
+    card_number = params.get("card_number")
+    if not card_number:
+        return {"reply": "💳 Please enter the 16-digit card number you want to unblock.\nExample: Unblock card 4111-1111-1111-1111",
+                "status": "success", "tier": "green"}
+    return {"reply": f"⚠️ Unblock card {card_number}?\nConfirm? [y/n]",
+            "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
+            "intent": {"action": "unblock_card", "params": {"card_number": card_number}}}
+
+def _execute_cancel_card(params: Dict, user_id: int) -> Dict[str, Any]:
+    cards_result = get_cards(user_id)
+    if cards_result["status"] != "success":
+        return _error_response(cards_result)
+
+    cards = cards_result["data"]
+    if not cards:
+        return {"reply": "❌ No cards found", "status": "error", "tier": "yellow"}
+
+    card_id = params.get("card_id")
+    if card_id:
+        target = next((c for c in cards if c["id"] == card_id), None)
+        if not target:
+            return {"reply": f"❌ Card #{card_id} not found", "status": "error", "tier": "yellow"}
+        return {"reply": f"⚠️ Cancel card {target['card_number']} ({target['card_type']})?\nConfirm? [y/n]",
+                "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True,
+                "intent": {"action": "cancel_card", "params": {"card_id": target["id"]}}}
+
+    active_cards = [c for c in cards if c["status"] == "active"]
+    if not active_cards:
+        return {"reply": "❌ No active cards to cancel", "status": "error", "tier": "yellow"}
+
+    lines = ["💳 Which card do you want to cancel?\n"]
+    for c in active_cards:
+        lines.append(f"  [{c['id']}] {c['card_number']} ({c['card_type']})")
+    lines.append("\nType the card ID (e.g., 'cancel card 1')")
+
+    return {"reply": "\n".join(lines), "status": "success", "tier": "green"}

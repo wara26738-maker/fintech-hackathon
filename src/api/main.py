@@ -1,6 +1,4 @@
 # src/api/main.py
-# FastAPI — REST API for Banking AI Agent
-
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware

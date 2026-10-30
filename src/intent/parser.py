@@ -27,7 +27,6 @@ KEYWORDS = {
     "cancel": ["cancel", "ยกเลิก"],
 }
 
-
 def find_similar_word(text: str) -> Optional[str]:
     text_lower = text.lower().strip()
     words = re.findall(r'[a-zA-Zก-๙]+', text_lower)
@@ -43,7 +42,6 @@ def find_similar_word(text: str) -> Optional[str]:
                     best_score = score
                     best_match = canonical
     return best_match
-
 
 def parse_with_mock(text: str) -> Dict[str, Any]:
     text_lower = text.lower().strip()
@@ -73,7 +71,7 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
     if any(k in text_lower for k in ["contact", "contacts", "ผู้รับโอน", "beneficiary", "beneficiaries", "รายชื่อ", "คนที่โอนด้วย"]):
         return {"action": "get_beneficiaries", "params": {}, "confidence": 0.9}
 
-    # สำคัญมาก: ต้องเช็ค Cancel Card ก่อน Cancel Subscription เสมอ
+    # ⭐ สำคัญมาก: ต้องเช็ค Cancel Card ก่อน Cancel Subscription เสมอ
     if re.search(r'cancel.*card|card.*cancel|ยกเลิก.*บัตร|บัตร.*ยกเลิก', text_lower):
         params = {}
         if card_match:
@@ -135,11 +133,10 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
     suggestion = find_similar_word(text)
     return {"action": "unknown", "params": {"original": text, "suggestion": suggestion}, "confidence": 0.0}
 
-DEEPSEEK_API_KEY="sk-a60d1b02548c43bda731b1919af8046d"
-
 def parse_with_deepseek(text: str) -> Dict[str, Any]:
     try:
         from openai import OpenAI
+        # ⭐ ดึง API Key จาก .env เท่านั้น
         client = OpenAI(
             api_key=os.getenv("DEEPSEEK_API_KEY"),
             base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
@@ -156,7 +153,6 @@ def parse_with_deepseek(text: str) -> Dict[str, Any]:
     except Exception as e:
         return {"action": "unknown", "params": {"error": str(e)}, "confidence": 0.0}
 
-
 def parse_with_openai(text: str) -> Dict[str, Any]:
     try:
         from openai import OpenAI
@@ -172,7 +168,6 @@ def parse_with_openai(text: str) -> Dict[str, Any]:
     except Exception as e:
         return {"action": "unknown", "params": {"error": str(e)}, "confidence": 0.0}
 
-
 def parse_intent(text: str) -> Dict[str, Any]:
     if not text or not text.strip():
         return {"action": "unknown", "params": {}, "confidence": 0.0}
@@ -183,7 +178,6 @@ def parse_intent(text: str) -> Dict[str, Any]:
         return parse_with_deepseek(text)
     else:
         return parse_with_mock(text)
-
 
 def describe_intent(intent: Dict[str, Any]) -> str:
     action = intent.get("action", "unknown")
