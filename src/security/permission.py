@@ -47,7 +47,6 @@ GREEN_ACTIONS = {
 
 # Actions ที่เป็น Yellow (ต้องยืนยัน)
 YELLOW_ACTIONS = {
-    "cancel_subscription",
     "apply_virtual_card",
     "update_note",
     "block_card",       # ⭐ ย้ายมาอยู่ Yellow (ไม่ต้อง OTP)
@@ -56,7 +55,7 @@ YELLOW_ACTIONS = {
 
 # Actions ที่เป็น Red (ต้อง MFA)
 RED_ACTIONS = {
-    "cancel_subscription",
+    "cancel_subscription", # ⭐ ยังอยู่ที่ Red (ต้องใช้ OTP)
     "report_card_lost",
     "change_password",
     "subscribe_investment",

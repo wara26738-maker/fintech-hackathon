@@ -24,9 +24,10 @@ def clear_expired_otps() -> None:
 
 def _summarize_action(action: str, params: Dict) -> str:
     if action == "transfer":
-        return f"Transfer ฿{int(params.get('amount', 0)):,} to {params.get('beneficiary_name', '?')}"
+        recipient = params.get("beneficiary_name") or params.get("recipient") or params.get("to") or params.get("name") or "?"
+        return f"Transfer ฿{int(params.get('amount', 0)):,} to {recipient}"
     if action == "cancel_subscription":
-        merchant = params.get("merchant_name")
+        merchant = params.get("merchant_name") or params.get("service")
         return f"Cancel {merchant}" if merchant else "Cancel subscription"
     if action == "block_card":
         return f"Block card {params.get('card_number', '?')}"
@@ -72,6 +73,15 @@ def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
     action = intent.get("action", "unknown")
     params = intent.get("params", {})
 
+    if action == "transfer":
+        if not params.get("beneficiary_name"):
+            params["beneficiary_name"] = (
+                params.get("recipient") or params.get("to") or params.get("name")
+            )
+    elif action == "cancel_subscription":
+        if not params.get("merchant_name"):
+            params["merchant_name"] = params.get("service")
+
     if action == "unknown":
         suggestion = params.get("suggestion")
         if suggestion:
@@ -83,11 +93,10 @@ def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
 
     if action == "help":
         return {"reply": _help_text(), "status": "success", "tier": "green"}
-
-    # ⭐ ดักจับ: ถ้าเป็น Cancel Card แต่ยังไม่ระบุ ID บัตร ให้ถามเลือกบัตรก่อน (ไม่ต้อง OTP)
+        # ⭐ ดักจับ: ถ้าเป็น Cancel Card แต่ยังไม่ระบุ ID บัตร ให้ถามเลือกบัตรก่อน (ไม่ต้อง OTP)
     if action == "cancel_card" and not params.get("card_id"):
         return _execute_action(action, params, user_id)
-
+    
     # ⭐ ดักจับ: ถ้าเป็น Block/Unblock Card แต่ยังไม่ระบุเลขบัตร ให้ถามหาเลขบัตรก่อน
     if action in ["block_card", "unblock_card"] and not params.get("card_number"):
         return _execute_action(action, params, user_id)
@@ -195,9 +204,10 @@ def confirm_action(intent: Dict[str, Any], user_id: int = 1) -> Dict[str, Any]:
         return _execute_transfer(params, user_id, verified=True)
 
     if action == "cancel_subscription":
+        merchant = params.get("merchant_name") or params.get("service")
         result = cancel_subscription(
             subscription_id=params.get("subscription_id"),
-            merchant_name=params.get("merchant_name"),
+            merchant_name=merchant,
         )
         if result["status"] == "success":
             return {"reply": f"✅ Cancelled {result['data']['merchant_name']}",
@@ -311,7 +321,13 @@ def _execute_action(action: str, params: Dict, user_id: int) -> Dict[str, Any]:
 # ═══════════════════════════════════════════
 
 def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dict[str, Any]:
-    beneficiary_name = params.get("beneficiary_name", "")
+    beneficiary_name = (
+        params.get("beneficiary_name") or 
+        params.get("recipient") or 
+        params.get("to") or 
+        params.get("name") or 
+        ""
+    )
     amount = params.get("amount", 0)
 
     if not beneficiary_name or not amount:
@@ -346,9 +362,23 @@ def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dic
             "intent": {"action": "transfer", "params": {"beneficiary_name": beneficiary_name, "amount": amount, "to_account_id": 3}}}
 
 def _execute_cancel_subscription(params: Dict, user_id: int) -> Dict[str, Any]:
-    merchant = params.get("merchant_name", "")
+    merchant = params.get("merchant_name") or params.get("service") or ""
+
     if not merchant:
-        return {"reply": "⚠️ Please specify subscription to cancel\nExample: Cancel Netflix", "status": "error", "tier": "yellow"}
+        subs_result = get_subscriptions(user_id)
+        if subs_result["status"] != "success":
+            return _error_response(subs_result)
+            
+        subs = subs_result["data"]
+        if not subs:
+            return {"reply": "❌ You have no active subscriptions.", "status": "error", "tier": "yellow"}
+
+        lines = ["🔄 Which subscription do you want to cancel?\n"]
+        for s in subs:
+            lines.append(f"  [{s['id']}] {s['merchant_name']} (฿{int(s['amount']):,}/month)")
+        lines.append("\nType the name or ID to cancel (e.g., 'Cancel Netflix' or 'Cancel 1')")
+        
+        return {"reply": "\n".join(lines), "status": "success", "tier": "green"}
 
     subs_result = get_subscriptions(user_id)
     if subs_result["status"] != "success":
@@ -356,7 +386,7 @@ def _execute_cancel_subscription(params: Dict, user_id: int) -> Dict[str, Any]:
 
     target = None
     for sub in subs_result["data"]:
-        if merchant.lower() in sub["merchant_name"].lower():
+        if merchant.lower() in sub["merchant_name"].lower() or str(sub["id"]) == str(merchant):
             target = sub
             break
 

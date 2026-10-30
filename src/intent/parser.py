@@ -10,7 +10,12 @@ load_dotenv()
 
 SYSTEM_PROMPT = """You are an intent parser for a banking AI agent.
 Convert user messages (Thai or English) into JSON.
-Available actions: get_balance, get_accounts, get_transactions, get_cards, get_subscriptions, get_beneficiaries, transfer, cancel_subscription, block_card, unblock_card, cancel_card, report_card_lost, get_user, help, unknown
+Available actions: get_balance, get_accounts, get_transactions, get_cards, get_subscriptions, get_beneficiaries, transfer, cancel_subscription, block_card, unblock_card, cancel_card, report_card_lost, get_user, help, unknown.
+Strictly use these parameter keys:
+- For transfer: {"beneficiary_name": "mom", "amount": 500}
+- For cancel_subscription: {"merchant_name": "Netflix"} OR {"subscription_id": 1}
+- For block_card/unblock_card: {"card_number": "4111..."}
+
 Output JSON: {"action": "...", "params": {...}, "confidence": 0.0-1.0}
 """
 
@@ -96,6 +101,11 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
 
     # ─── Cancel Subscription ───
     if any(k in text_lower for k in ["ยกเลิก", "cancel"]):
+        # ⭐ NEW: Catch if the user typed an ID number (e.g., "Cancel 1")
+        sub_id_match = re.search(r'cancel\s+(?:sub(?:scription)?\s+)?(\d+)', text_lower)
+        if sub_id_match:
+             return {"action": "cancel_subscription", "params": {"subscription_id": int(sub_id_match.group(1))}, "confidence": 0.85}
+             
         merchants = ["netflix", "spotify", "icloud", "youtube", "disney"]
         for m in merchants:
             if m in text_lower:
@@ -133,11 +143,11 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
     suggestion = find_similar_word(text)
     return {"action": "unknown", "params": {"original": text, "suggestion": suggestion}, "confidence": 0.0}
 
+
 def parse_with_deepseek(text: str) -> Dict[str, Any]:
     try:
         from openai import OpenAI
-        # ⭐ ดึง API Key จาก .env เท่านั้น
-        client = OpenAI(
+        client = OpenAI(# ⭐ ดึง API Key จาก .env เท่านั้น
             api_key=os.getenv("DEEPSEEK_API_KEY"),
             base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
         )
@@ -151,7 +161,9 @@ def parse_with_deepseek(text: str) -> Dict[str, Any]:
         content = content.replace("```json", "").replace("```", "").strip()
         return json.loads(content)
     except Exception as e:
+        print(f"🚨 DEEPSEEK ERROR: {e}")
         return {"action": "unknown", "params": {"error": str(e)}, "confidence": 0.0}
+
 
 def parse_with_openai(text: str) -> Dict[str, Any]:
     try:
@@ -168,6 +180,7 @@ def parse_with_openai(text: str) -> Dict[str, Any]:
     except Exception as e:
         return {"action": "unknown", "params": {"error": str(e)}, "confidence": 0.0}
 
+
 def parse_intent(text: str) -> Dict[str, Any]:
     if not text or not text.strip():
         return {"action": "unknown", "params": {}, "confidence": 0.0}
@@ -178,6 +191,7 @@ def parse_intent(text: str) -> Dict[str, Any]:
         return parse_with_deepseek(text)
     else:
         return parse_with_mock(text)
+
 
 def describe_intent(intent: Dict[str, Any]) -> str:
     action = intent.get("action", "unknown")
