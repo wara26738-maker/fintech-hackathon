@@ -5,7 +5,8 @@ from typing import Optional, List, Dict, Any
 from ..db.session import SessionLocal
 from ..db.models import (
     User, Account, Transaction, Card, Subscription, Beneficiary,
-    TransactionType, TransactionStatus, CardStatus, ScheduledTransfer, SplitBill, BillParticipant
+    TransactionType, TransactionStatus, CardStatus, ScheduledTransfer, SplitBill, BillParticipant,
+    SavingsGoal
 )
 from ..db.models import SavingsGoal
 
@@ -118,11 +119,30 @@ def transfer(
         db.add(tx)
         db.commit()
         db.refresh(tx)
+        
+        alert_msg = ""
+        try:
+            analysis = get_savings_analysis(from_acc.user_id)
+            if analysis["status"] == "success":
+                tx_category = (category or "transfer").lower()
+                for line in analysis["data"]["breakdown"].split("\n"):
+                    if tx_category in line.lower() and "OVER BUDGET" in line:
+                        alert_msg = (
+                            f"\n\n🚨 **BUDGET ALERT** 🚨\n"
+                            f"You have overspent on {tx_category.capitalize()}!\n"
+                            f"{line.strip()}\n"
+                            f"Type 'Show my budget' to see how to fix this."
+                        )
+                        break
+        except Exception as e:
+            print(f"⚠️ Bill analysis failed, but transfer succeeded: {e}")
+
         return {"status": "success", "data": {
             "transaction_id": tx.id, "amount": amount,
             "from_account": from_acc.account_number,
             "to_account": to_acc.account_number,
-            "new_balance": float(from_acc.balance)
+            "new_balance": float(from_acc.balance),
+            "notification": alert_msg
         }}
     except Exception as e:
         db.rollback()
@@ -337,21 +357,26 @@ def create_split_bill(creator_id: int, total_amount: float, split_type: str, con
         return {"status": "error", "message": str(e)}
     finally:
         db.close()
+
 #------------------------------------saving---------------------------------------------------------------------------------------
 def get_savings_analysis(user_id: int) -> Dict[str, Any]:
     """Calculates budgets, current spending, and savings progress."""
     db = SessionLocal()
     try:
         goal = db.query(SavingsGoal).filter(SavingsGoal.user_id == user_id, SavingsGoal.is_active == True).first()
+        
+        # ⭐ If no goal exists, default to safe values instead of crashing
         if not goal:
-            return {"status": "error", "message": "No active savings goal found. Please set one up."}
-
-        # For the hackathon, we mock an income (or you can add income to the DB)
+            target = 0.0
+            priorities = ["food", "housing", "transportation", "entertainment", "subscription", "card"]
+        else:
+            target = float(goal.target_amount)
+            priorities = [p.strip().lower() for p in goal.priority_ranking.split(",") if p.strip()]
+        
         monthly_income = 50000.0
         target = float(goal.target_amount)
         spendable = monthly_income - target
-        
-        # Calculate category budgets based on priority ranking
+            # Calculate category budgets based on priority ranking
         priorities = goal.priority_ranking.split(",")
         # We assign weights: Highest priority gets 30%, next 25%, next 20%, then remaining split
         weights = {priorities[0]: 0.30, priorities[1]: 0.25, priorities[2]: 0.20}
@@ -360,7 +385,24 @@ def get_savings_analysis(user_id: int) -> Dict[str, Any]:
         remaining_cats = priorities[3:]
         for cat in remaining_cats:
             weights[cat] = remaining_weight / len(remaining_cats) if remaining_cats else 0
-
+        weights = {}
+        if len(priorities) == 1:
+            weights[priorities[0]] = 1.0
+        elif len(priorities) == 2:
+            weights[priorities[0]] = 0.60
+            weights[priorities[1]] = 0.40
+        elif len(priorities) == 3:
+            weights[priorities[0]] = 0.40
+            weights[priorities[1]] = 0.30
+            weights[priorities[2]] = 0.30
+        else:
+            weights[priorities[0]] = 0.30
+            weights[priorities[1]] = 0.25
+            weights[priorities[2]] = 0.20
+            remaining_weight = 1.0 - sum(weights.values())
+            remaining_cats = priorities[3:]
+            for cat in remaining_cats:
+                weights[cat] = remaining_weight / len(remaining_cats) if remaining_cats else 0
         # Get current month's transactions
         now = datetime.utcnow()
         start_of_month = datetime(now.year, now.month, 1)
@@ -376,8 +418,7 @@ def get_savings_analysis(user_id: int) -> Dict[str, Any]:
             cat = tx.category.lower() if tx.category else "other"
             if cat in spent_by_cat:
                 spent_by_cat[cat] += float(tx.amount)
-
-        # Build report
+        #build report
         report = []
         total_spent = 0
         for cat in priorities:
@@ -421,11 +462,10 @@ def adjust_category_budget(user_id: int, from_category: str, to_category: str, a
         
         if from_category.lower() not in priorities or to_category.lower() not in priorities:
             return {"status": "error", "message": "Invalid categories."}
-            
-        # Check priority (Higher index = lower priority)
+
         if priorities.index(from_category.lower()) < priorities.index(to_category.lower()):
             return {"status": "error", "message": f"Cannot shift budget. '{from_category}' is a higher priority than '{to_category}'."}
-
+            
         # In a real app, you would save these overrides to the DB. For the hackathon, we mock success.
         return {
             "status": "success",

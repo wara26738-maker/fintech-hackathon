@@ -12,7 +12,7 @@ SYSTEM_PROMPT = """You are an intent parser for a banking AI agent.
 Convert user messages (Thai or English) into JSON.
 Available actions: get_balance, get_accounts, get_transactions, get_cards, get_subscriptions, get_beneficiaries, transfer, cancel_subscription, block_card, unblock_card, cancel_card, report_card_lost, get_user, help, unknown, get_savings_analysis, adjust_budget, split_bill, schedule_transfer.
 Strictly use these parameter keys:
-- For transfer: {"beneficiary_name": "mom", "amount": 500}
+- For transfer: {"beneficiary_name": "mom", "amount": 500, "category": "food"}
 - For cancel_subscription: {"merchant_name": "Netflix"} OR {"subscription_id": 1}
 - For block_card/unblock_card: {"card_number": "4111..."}
 - For adjust_budget: {"amount": 500, "from_category": "entertainment", "to_category": "food"}
@@ -168,6 +168,13 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
             params["beneficiary_name"] = beneficiary
         if amount:
             params["amount"] = amount
+            
+        # ⭐ Extract category
+        for cat in ["food", "housing", "transportation", "entertainment", "subscription", "card"]:
+            if cat in text_lower:
+                params["category"] = cat
+                break
+                
         return {"action": "transfer", "params": params, "confidence": 0.85}
 
     if any(k in text_lower for k in ["ข้อมูล", "profile", "user", "ฉัน"]):
@@ -240,8 +247,5 @@ def describe_intent(intent: Dict[str, Any]) -> str:
     action = intent.get("action", "unknown")
     params = intent.get("params", {})
     confidence = intent.get("confidence", 0.0)
-    desc = f"Action: {action}"
-    if params:
-        desc += f" | Params: {params}"
-    desc += f" | Confidence: {confidence:.2f}"
+    desc = f"Action: {action}, Confidence: {confidence:.2f}, Params: {params}"
     return desc

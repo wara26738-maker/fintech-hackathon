@@ -44,6 +44,7 @@ GREEN_ACTIONS = {
     "query",
     "help",
     "set_savings_goal",
+    "get_savings_analysis",
 }
 
 # Actions ที่เป็น Yellow (ต้องยืนยัน)

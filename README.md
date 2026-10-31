@@ -81,3 +81,6 @@ python main.py
 # 7. Run on the local host
 uvicorn src.api.main:app --reload
 http://localhost:8000
+
+#reset data
+rm banking.db

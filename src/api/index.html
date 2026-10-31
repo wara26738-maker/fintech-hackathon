@@ -126,7 +126,9 @@
                         <div class="quick-actions">
                             <button class="quick-btn" onclick="quickSend('Check balance')">💵 Balance</button>
                             <button class="quick-btn" onclick="quickSend('Show transactions')">📊 Txns</button>
-                            <button class="quick-btn" onclick="openSavingsModal()">🎯 Goal</button>
+                            <button class="quick-btn" onclick="openSavingsModal()">🎯 Setup Goal</button>
+                            <!-- ⭐ NEW BUTTON ADDED HERE ⭐ -->
+                            <button class="quick-btn" onclick="quickSend('Show my budget')">📈 Check Goal</button>
                         </div>
                     </div>
                     
@@ -464,10 +466,17 @@
                         body: JSON.stringify({user_id: 1, otp: text})
                     });
                     const data = await res.json();
-                    if (!res.ok) addMessage('❌ ' + (data.detail || 'Error'), 'ai');
-                    else {
-                        addMessage(data.reply, 'ai', false, data.data);
-                        if (!data.requires_mfa) pendingMFA = false;
+                    
+                    if (!res.ok) {
+                        addMessage('❌ ' + (data.detail || 'Error'), 'ai');
+                    } else {
+                        // ⭐ FIX: Only turn off pendingMFA if the OTP was actually successful
+                        if (data.status === "error") {
+                            addMessage(data.reply, 'ai');
+                        } else {
+                            addMessage(data.reply, 'ai', false, data.data);
+                            if (!data.requires_mfa) pendingMFA = false; 
+                        }
                     }
                 } catch (e) { addMessage('❌ Error: ' + e.message, 'ai'); pendingMFA = false; }
                 sendBtn.disabled = false; input.focus(); return;

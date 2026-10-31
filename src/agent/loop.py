@@ -409,8 +409,9 @@ def _execute_action(action: str, params: Dict, user_id: int) -> Dict[str, Any]:
                 return {"reply": f"👤 Your profile:\n  • Name: {data['full_name']}\n  • Phone: {data['phone']}\n  • Email: {data['email']}",
                         "status": "success", "tier": "green", "data": data}
             return _error_response(result)
-
+        
         # ⭐ ADDED SAVINGS GOAL DB LOGIC HERE ⭐
+
         if action == "set_savings_goal":
             from ..db.session import SessionLocal
             from ..db.models import SavingsGoal
@@ -494,7 +495,8 @@ def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dic
         ""
     )
     amount = params.get("amount", 0)
-    to_account_id = params.get("to_account_id", 3)
+    # ⭐ FORCE to_account_id to 3 so money deducts properly
+    to_account_id = 3
 
     if not beneficiary_name or not amount:
         return {"reply": "⚠️ Please specify recipient and amount\nExample: Transfer 500 to Mom",
@@ -508,11 +510,14 @@ def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dic
     if verified:
         result = transfer(
             from_account_id=1, to_account_id=to_account_id,
-            amount=amount, note=beneficiary_name, category="transfer",
+            amount=amount, note=beneficiary_name, 
+            category=params.get("category", "transfer")
         )
         if result["status"] == "success":
             data = result["data"]
-            return {"reply": f"✅ Transferred ฿{int(data['amount']):,} to {ben['nickname']}\n💰 New balance: ฿{int(data['new_balance']):,}",
+            notification = data.get("notification", "")
+            
+            return {"reply": f"✅ Transferred ฿{int(data['amount']):,} to {ben['nickname']}\n💰 New balance: ฿{int(data['new_balance']):,}{notification}",
                     "status": "success", "tier": "yellow" if amount <= 1000 else "red", "data": data}
         return _error_response(result)
 
