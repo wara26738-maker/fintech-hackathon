@@ -7,6 +7,7 @@ from ..db.models import (
     User, Account, Transaction, Card, Subscription, Beneficiary,
     TransactionType, TransactionStatus, CardStatus, ScheduledTransfer, SplitBill, BillParticipant
 )
+from ..db.models import SavingsGoal
 
 def clean_card_number(card_number: str) -> Optional[str]:
     digits = re.sub(r"\D", "", str(card_number))
@@ -334,5 +335,103 @@ def create_split_bill(creator_id: int, total_amount: float, split_type: str, con
     except Exception as e:
         db.rollback()
         return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
+#------------------------------------saving---------------------------------------------------------------------------------------
+def get_savings_analysis(user_id: int) -> Dict[str, Any]:
+    """Calculates budgets, current spending, and savings progress."""
+    db = SessionLocal()
+    try:
+        goal = db.query(SavingsGoal).filter(SavingsGoal.user_id == user_id, SavingsGoal.is_active == True).first()
+        if not goal:
+            return {"status": "error", "message": "No active savings goal found. Please set one up."}
+
+        # For the hackathon, we mock an income (or you can add income to the DB)
+        monthly_income = 50000.0
+        target = float(goal.target_amount)
+        spendable = monthly_income - target
+        
+        # Calculate category budgets based on priority ranking
+        priorities = goal.priority_ranking.split(",")
+        # We assign weights: Highest priority gets 30%, next 25%, next 20%, then remaining split
+        weights = {priorities[0]: 0.30, priorities[1]: 0.25, priorities[2]: 0.20}
+        
+        remaining_weight = 0.25
+        remaining_cats = priorities[3:]
+        for cat in remaining_cats:
+            weights[cat] = remaining_weight / len(remaining_cats) if remaining_cats else 0
+
+        # Get current month's transactions
+        now = datetime.utcnow()
+        start_of_month = datetime(now.year, now.month, 1)
+        
+        txs = db.query(Transaction).filter(
+            (Transaction.from_account_id == 1) | (Transaction.to_account_id == 1),
+            Transaction.created_at >= start_of_month,
+            Transaction.transaction_type == TransactionType.PAYMENT or Transaction.transaction_type == TransactionType.TRANSFER
+        ).all()
+
+        spent_by_cat = {cat: 0.0 for cat in priorities}
+        for tx in txs:
+            cat = tx.category.lower() if tx.category else "other"
+            if cat in spent_by_cat:
+                spent_by_cat[cat] += float(tx.amount)
+
+        # Build report
+        report = []
+        total_spent = 0
+        for cat in priorities:
+            budget = spendable * weights.get(cat, 0)
+            spent = spent_by_cat.get(cat, 0)
+            total_spent += spent
+            percent = (spent / budget * 100) if budget > 0 else 0
+            
+            status = "✅ on track"
+            if percent > 100: status = "🚨 OVER BUDGET"
+            elif percent > 80: status = "⚠️ nearing limit"
+
+            report.append(f"- {cat.capitalize()}: ฿{spent:,.0f} / ฿{budget:,.0f} ({percent:.0f}%) {status}")
+
+        actual_savings = monthly_income - total_spent
+        
+        return {
+            "status": "success",
+            "data": {
+                "target": target,
+                "income": monthly_income,
+                "spent": total_spent,
+                "actual_savings": actual_savings,
+                "on_track": actual_savings >= target,
+                "breakdown": "\n".join(report),
+                "priorities": priorities
+            }
+        }
+    finally:
+        db.close()
+
+def adjust_category_budget(user_id: int, from_category: str, to_category: str, amount: float) -> Dict[str, Any]:
+    """Shifts budget from a lower priority to a higher priority category."""
+    db = SessionLocal()
+    try:
+        goal = db.query(SavingsGoal).filter(SavingsGoal.user_id == user_id, SavingsGoal.is_active == True).first()
+        if not goal:
+            return {"status": "error", "message": "No active savings goal found."}
+            
+        priorities = [p.strip().lower() for p in goal.priority_ranking.split(",")]
+        
+        if from_category.lower() not in priorities or to_category.lower() not in priorities:
+            return {"status": "error", "message": "Invalid categories."}
+            
+        # Check priority (Higher index = lower priority)
+        if priorities.index(from_category.lower()) < priorities.index(to_category.lower()):
+            return {"status": "error", "message": f"Cannot shift budget. '{from_category}' is a higher priority than '{to_category}'."}
+
+        # In a real app, you would save these overrides to the DB. For the hackathon, we mock success.
+        return {
+            "status": "success",
+            "data": {
+                "message": f"Successfully shifted ฿{amount:,.0f} from {from_category.capitalize()} to {to_category.capitalize()} to cover overspending. Your savings goal remains safe!"
+            }
+        }
     finally:
         db.close()

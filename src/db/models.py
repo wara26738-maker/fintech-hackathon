@@ -207,3 +207,18 @@ class BillParticipant(Base):
     beneficiary_id = Column(Integer, ForeignKey("beneficiaries.id"))
     amount_owed = Column(Numeric(15, 2))
     has_paid = Column(Boolean, default=False)
+
+class SavingsGoal(Base):
+    __tablename__ = "savings_goals"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    target_amount = Column(Numeric(15, 2), nullable=False)
+    # Stored as a comma-separated string, e.g., "housing,food,transportation,entertainment"
+    # The order matters! First is highest priority.
+    priority_ranking = Column(String(200), nullable=False) 
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<SavingsGoal ฿{self.target_amount} Rank:{self.priority_ranking}>"

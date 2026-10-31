@@ -43,6 +43,7 @@ GREEN_ACTIONS = {
     "find_beneficiary",
     "query",
     "help",
+    "set_savings_goal",
 }
 
 # Actions ที่เป็น Yellow (ต้องยืนยัน)
