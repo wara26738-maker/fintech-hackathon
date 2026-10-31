@@ -81,4 +81,3 @@ python main.py
 # 7. Run on the local host
 uvicorn src.api.main:app --reload
 http://localhost:8000
-#deepseek apikey sk-a60d1b02548c43bda731b1919af8046d
