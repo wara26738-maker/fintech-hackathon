@@ -8,11 +8,13 @@ from ..security.permission import check_tier, Tier
 from ..tools.banking import (
     get_user, get_accounts, get_balance, get_transactions,
     transfer, get_subscriptions, cancel_subscription,
-    get_cards, get_beneficiaries, find_beneficiary, find_all_beneficiaries,
+    get_cards, get_beneficiaries, find_beneficiary,
     block_card, unblock_card, cancel_card,
-    get_savings_analysis, adjust_category_budget, create_split_bill,
-    get_subscription_dashboard
+    find_all_beneficiaries, schedule_transfer, create_split_bill,
+    get_savings_analysis, adjust_category_budget, get_subscription_dashboard,
+    execute_investment
 )
+from ..tools.investment import analyze_real_investment
 
 _pending_otps: Dict[int, Dict[str, Any]] = {}
 _pending_suggestions: Dict[int, Dict[str, Any]] = {}
@@ -44,6 +46,8 @@ def _summarize_action(action: str, params: Dict) -> str:
         return f"Split ฿{int(params.get('amount', 0)):,} with {', '.join(params.get('contacts', []))}"
     if action == "schedule_transfer":
         return f"Schedule ฿{int(params.get('amount', 0)):,} to {params.get('beneficiary_name', '?')} on {params.get('date')}"
+    if action == "smart_invest":
+        return f"Invest ฿{int(params.get('budget', 0)):,}"
     return f"Perform action: {action}"
 
 def _error_response(result: Dict) -> Dict[str, Any]:
@@ -72,10 +76,6 @@ def _help_text() -> str:
             "  • 'help'\n"
             "  • 'exit'")
 
-# ═══════════════════════════════════════════
-# SUGGESTION HANDLING
-# ═══════════════════════════════════════════
-
 def handle_suggestion(user_id: int, answer: str) -> Dict[str, Any]:
     if user_id not in _pending_suggestions:
         return {"reply": "No pending suggestion.", "status": "error", "tier": "green"}
@@ -93,11 +93,6 @@ def handle_suggestion(user_id: int, answer: str) -> Dict[str, Any]:
 def has_pending_suggestion(user_id: int) -> bool:
     return user_id in _pending_suggestions
 
-
-# ═══════════════════════════════════════════
-# MAIN FLOW
-# ═══════════════════════════════════════════
-
 def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
     text_lower = user_input.lower().strip()
 
@@ -112,7 +107,6 @@ def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
                 del _pending_actions[user_id]
                 
                 intent["params"]["beneficiary_name"] = selected["nickname"]
-                intent["params"]["to_account_id"] = selected["id"]
                 
                 amount = intent["params"].get("amount", 0)
                 tier = check_tier("transfer", amount)
@@ -124,7 +118,6 @@ def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
         except ValueError:
             return {"reply": "Please type the number (1 or 2) to select.", "status": "error", "tier": "green"}
 
-    # ─── Flow ปกติ ───
     intent = parse_intent(user_input)
     action = intent.get("action", "unknown")
     params = intent.get("params", {})
@@ -150,16 +143,65 @@ def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
     if action == "help":
         return {"reply": _help_text(), "status": "success", "tier": "green"}
 
-    # ⭐ จัดการ Split Bill (รับมาจาก Modal ที่ส่ง type มาด้วย)
+    # ⭐ เพิ่มส่วนนี้เพื่อให้ AI คุยเล่นได้
+    if action == "chit_chat":
+        reply = params.get("reply", "I'm here to help with your banking needs! How can I assist you today?")
+        return {"reply": reply, "status": "success", "tier": "green"}
+
+    # ⭐ Smart Investment Flow
+    if action == "smart_invest":
+        budget = params.get("budget") or params.get("amount") or 0
+        risk = params.get("risk", "Medium")
+        goal = params.get("goal", "")
+        
+        if budget <= 0:
+            return {"reply": "⚠️ Please provide a valid budget to invest.", "status": "error", "tier": "yellow"}
+            
+        analysis = analyze_real_investment(budget, risk, goal)
+        if analysis["status"] != "success":
+            return _error_response(analysis)
+            
+        data = analysis["data"]
+        
+        lines = [f"🤖 **AI Investment Analysis (Real Data)**\nGoal: {data['goal']} | Risk: {data['risk']}\nBudget: ฿{budget:,.2f}\n"]
+        lines.append(f"💡 **Strategy:** {data['summary']}\n")
+        lines.append("📊 **Recommended Assets:**")
+        
+        for s in data["stocks"]:
+            lines.append(f"• **{s['symbol']}** ({s['name']}) - ฿{s['price']:,.2f}")
+            lines.append(f"  📈 Trend: {s['trend']}")
+            lines.append(f"  Alloc: {s['alloc_pct']}% (฿{s['alloc_amount']:,.2f}) -> {s['shares']} shares")
+            lines.append(f"  📰 *Reason: {s['reason']}*")
+            
+        lines.append(f"\n⚠️ Proceed to invest ฿{budget:,.2f}? [y/n]")
+        
+        intent["params"]["analysis"] = data
+        return {
+            "reply": "\n".join(lines),
+            "status": "pending_confirmation",
+            "tier": "red",
+            "requires_confirmation": True,
+            "intent": intent
+        }
+
     if action == "split_bill":
         amt = params.get("amount", 1500)
-        contacts = params.get("contacts", ["Mom", "Sarah"])
+        contacts = params.get("contacts", [])
         split_type = params.get("split_type", "equal")
+        percentages = params.get("percentages", [])
         
-        res = create_split_bill(user_id, amt, split_type, [1, 2], "Dinner")
+        contact_ids = []
+        for c in contacts:
+            matches = find_all_beneficiaries(user_id, c)
+            if matches:
+                contact_ids.append(matches[0]["id"])
+                
+        if not contact_ids:
+            return {"reply": "❌ Could not find the selected friends in your contacts.", "status": "error", "tier": "yellow"}
+
+        res = create_split_bill(user_id, amt, split_type, contact_ids, "Dinner", percentages=percentages)
         return {"reply": f"🧾 {res['message']}\n\nSplit with: {', '.join(contacts)}", "status": "success", "tier": "yellow"}
 
-    # ⭐ จัดการ Schedule Transfer (มาจาก Modal)
     if action == "schedule_transfer":
         amt = params.get("amount", 1000)
         ben = params.get("beneficiary_name", "Mom")
@@ -169,7 +211,6 @@ def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
         return {"reply": f"⏰ Scheduled Transfer:\nAmount: ฿{int(amt):,}\nTo: {ben}\nStart Date: {date_str} at {time_str}\n\nConfirm? [y/n]",
                 "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True, "intent": intent}
 
-    # ─── Transfer (with Duplicate Name Handling) ───
     if action == "transfer":
         try:
             amount = float(params.get("amount", 0))
@@ -195,8 +236,7 @@ def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
             return {"reply": f"❌ Beneficiary '{ben_name}' not found", "status": "error", "tier": "yellow"}
             
         intent["params"]["beneficiary_name"] = matches[0]["nickname"]
-        intent["params"]["to_account_id"] = matches[0]["id"]
-
+        
         tier = check_tier("transfer", amount)
         if tier == Tier.RED:
             return _create_otp_challenge(user_id, "transfer", intent["params"], intent)
@@ -204,13 +244,11 @@ def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
         return {"reply": f"⚠️ Transfer ฿{int(amount):,} to {matches[0]['nickname']} ({matches[0]['phone']})?\nConfirm? [y/n]",
                 "status": "pending_confirmation", "tier": "yellow", "requires_confirmation": True, "intent": intent}
 
-    # ─── ดักจับบัตร (Cancel/Block) ───
     if action == "cancel_card" and not params.get("card_id"):
         return _execute_action(action, params, user_id)
     if action in ["block_card", "unblock_card"] and not params.get("card_number"):
         return _execute_action(action, params, user_id)
 
-    # ─── ส่งต่อให้ Permission ───
     amount = params.get("amount", 0)
     tier = check_tier(action, amount)
     if tier == Tier.RED:
@@ -222,32 +260,6 @@ def process_message(user_input: str, user_id: int = 1) -> Dict[str, Any]:
                 "requires_confirmation": True, "intent": intent}
 
     return _execute_action(action, params, user_id)
-
-
-# ═══════════════════════════════════════════
-# SUGGESTION HANDLING
-# ═══════════════════════════════════════════
-
-def handle_suggestion(user_id: int, answer: str) -> Dict[str, Any]:
-    if user_id not in _pending_suggestions:
-        return {"reply": "No pending suggestion.", "status": "error", "tier": "green"}
-    pending = _pending_suggestions[user_id]
-    answer_lower = answer.lower().strip()
-    if answer_lower in ["yes", "y", "ใช่", "ok"]:
-        del _pending_suggestions[user_id]
-        return {"reply": f"✅ OK, interpreting as '{pending['suggestion']}'...",
-                "status": "success", "tier": "green", "retry_message": pending["suggestion"]}
-    elif answer_lower in ["no", "n", "ไม่"]:
-        del _pending_suggestions[user_id]
-        return {"reply": "OK. Please type again.", "status": "success", "tier": "green"}
-    return {"reply": "Please answer 'yes' or 'no'.", "status": "error", "tier": "green"}
-
-def has_pending_suggestion(user_id: int) -> bool:
-    return user_id in _pending_suggestions
-
-# ═══════════════════════════════════════════
-# OTP FLOW
-# ═══════════════════════════════════════════
 
 def _create_otp_challenge(user_id: int, action: str, params: Dict, intent: Dict) -> Dict[str, Any]:
     clear_expired_otps()
@@ -287,17 +299,13 @@ def verify_otp(user_id: int, otp: str) -> Dict[str, Any]:
 
     if action == "transfer":
         result = _execute_transfer(params, user_id, verified=True)
-    elif action in ["block_card", "unblock_card", "cancel_card", "cancel_subscription"]:
+    elif action in ["smart_invest", "block_card", "unblock_card", "cancel_card", "cancel_subscription"]:
         result = confirm_action(intent, user_id)
     else:
         result = _execute_action(action, params, user_id)
 
     result["reply"] = "✅ OTP verified!\n\n" + result["reply"]
     return result
-
-# ═══════════════════════════════════════════
-# CONFIRMATION EXECUTOR
-# ═══════════════════════════════════════════
 
 def confirm_action(intent: Dict[str, Any], user_id: int = 1) -> Dict[str, Any]:
     action = intent.get("action")
@@ -306,11 +314,31 @@ def confirm_action(intent: Dict[str, Any], user_id: int = 1) -> Dict[str, Any]:
     if action == "transfer":
         return _execute_transfer(params, user_id, verified=True)
 
+    if action == "smart_invest":
+        budget = params.get("budget", 0)
+        analysis = params.get("analysis", {})
+        symbols = ", ".join([s["symbol"] for s in analysis.get("stocks", [])])
+        
+        result = execute_investment(user_id, budget, symbols)
+        if result["status"] == "success":
+            return {
+                "reply": f"✅ **Investment Successful!** 🎉\n\n{result['message']}\n\nYour AI portfolio ({symbols}) is now active.",
+                "status": "success",
+                "tier": "red"
+            }
+        return _error_response(result)
+
     if action == "split_bill":
         return {"reply": f"✅ Split ฿{int(params.get('amount', 0)):,} successfully!", "status": "success", "tier": "yellow"}
 
     if action == "schedule_transfer":
-        return {"reply": f"✅ Scheduled ฿{int(params.get('amount', 0)):,} to {params.get('beneficiary_name')} on {params.get('date')} at {params.get('time')}.", "status": "success", "tier": "yellow"}
+        amt = params.get("amount", 1000)
+        ben = params.get("beneficiary_name", "Mom")
+        date_str = params.get("date")
+        time_str = params.get("time", "09:00")
+        
+        return {"reply": f"✅ Success! Recurring transfer of ฿{int(amt):,} to {ben} has been set for {date_str} at {time_str}.\nI will remind you 3 days before.",
+                "status": "success", "tier": "yellow"}
 
     if action == "cancel_subscription":
         sub_id = params.get("subscription_id")
@@ -358,10 +386,6 @@ def confirm_action(intent: Dict[str, Any], user_id: int = 1) -> Dict[str, Any]:
         return _error_response(result)
 
     return {"reply": "❌ Cannot perform this action", "status": "error", "tier": "yellow"}
-
-# ═══════════════════════════════════════════
-# READ-ONLY / DISPATCH EXECUTOR
-# ═══════════════════════════════════════════
 
 def _execute_action(action: str, params: Dict, user_id: int) -> Dict[str, Any]:
     try:
@@ -422,8 +446,6 @@ def _execute_action(action: str, params: Dict, user_id: int) -> Dict[str, Any]:
                         "status": "success", "tier": "green", "data": data}
             return _error_response(result)
         
-        # ⭐ ADDED SAVINGS GOAL DB LOGIC HERE ⭐
-
         if action == "set_savings_goal":
             from ..db.session import SessionLocal
             from ..db.models import SavingsGoal
@@ -494,10 +516,6 @@ def _execute_action(action: str, params: Dict, user_id: int) -> Dict[str, Any]:
     except Exception as e:
         return {"reply": f"❌ Error: {str(e)}", "status": "error", "tier": "green"}
 
-# ═══════════════════════════════════════════
-# ACTION-SPECIFIC EXECUTORS
-# ═══════════════════════════════════════════
-
 def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dict[str, Any]:
     beneficiary_name = (
         params.get("beneficiary_name") or 
@@ -507,8 +525,7 @@ def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dic
         ""
     )
     amount = params.get("amount", 0)
-    # ⭐ FORCE to_account_id to 3 so money deducts properly
-    to_account_id = 3
+    to_account_id = params.get("to_account_id", 3)
 
     if not beneficiary_name or not amount:
         return {"reply": "⚠️ Please specify recipient and amount\nExample: Transfer 500 to Mom",

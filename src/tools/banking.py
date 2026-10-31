@@ -5,10 +5,8 @@ from typing import Optional, List, Dict, Any
 from ..db.session import SessionLocal
 from ..db.models import (
     User, Account, Transaction, Card, Subscription, Beneficiary,
-    TransactionType, TransactionStatus, CardStatus, ScheduledTransfer, SplitBill, BillParticipant,
-    SavingsGoal
+    TransactionType, TransactionStatus, CardStatus, ScheduledTransfer, SplitBill, BillParticipant, SavingsGoal
 )
-from ..db.models import SavingsGoal
 
 def clean_card_number(card_number: str) -> Optional[str]:
     digits = re.sub(r"\D", "", str(card_number))
@@ -301,7 +299,8 @@ def find_beneficiary(user_id: int, nickname: str) -> Dict[str, Any]:
     try:
         ben = db.query(Beneficiary).filter(
             Beneficiary.user_id == user_id,
-            Beneficiary.nickname.ilike(f"%{nickname}%")
+            (Beneficiary.nickname.ilike(f"%{nickname}%")) | 
+            (Beneficiary.full_name.ilike(f"%{nickname}%"))
         ).first()
         if not ben:
             return {"status": "error", "message": f"Beneficiary '{nickname}' not found"}
@@ -317,7 +316,8 @@ def find_all_beneficiaries(user_id: int, nickname: str) -> List[Dict]:
     try:
         bens = db.query(Beneficiary).filter(
             Beneficiary.user_id == user_id,
-            Beneficiary.nickname.ilike(f"%{nickname}%")
+            (Beneficiary.nickname.ilike(f"%{nickname}%")) | 
+            (Beneficiary.full_name.ilike(f"%{nickname}%"))
         ).all()
         return [{"id": b.id, "nickname": b.nickname, "full_name": b.full_name, "phone": b.phone} for b in bens]
     finally:
@@ -337,7 +337,7 @@ def schedule_transfer(user_id: int, to_account_id: int, amount: float, date_str:
     finally:
         db.close()
 
-def create_split_bill(creator_id: int, total_amount: float, split_type: str, contact_ids: List[int], note: str) -> Dict[str, Any]:
+def create_split_bill(creator_id: int, total_amount: float, split_type: str, contact_ids: List[int], note: str, percentages: List[float] = None) -> Dict[str, Any]:
     db = SessionLocal()
     try:
         bill = SplitBill(creator_id=creator_id, total_amount=total_amount, split_type=split_type, description=note)
@@ -345,22 +345,39 @@ def create_split_bill(creator_id: int, total_amount: float, split_type: str, con
         db.commit()
         
         num_people = len(contact_ids) + 1
-        per_person = total_amount / num_people if split_type == "equal" else 0
+        msg_extra = ""
         
-        for cid in contact_ids:
-            p = BillParticipant(bill_id=bill.id, beneficiary_id=cid, amount_owed=per_person)
+        for i, cid in enumerate(contact_ids):
+            if split_type == "percentage" and percentages and i < len(percentages):
+                pct = percentages[i]
+                amount_owed = total_amount * (pct / 100)
+                msg_extra += f"\n- Friend {i+1}: {pct}% (฿{amount_owed:,.2f})"
+            else:
+                amount_owed = total_amount / num_people
+                
+            p = BillParticipant(bill_id=bill.id, beneficiary_id=cid, amount_owed=amount_owed)
             db.add(p)
+            
         db.commit()
-        return {"status": "success", "message": f"Created split bill of ฿{total_amount:,} for {note}.\nSent invoices to {len(contact_ids)} friends.\nEach owes: ฿{per_person:,.2f}"}
+        
+        if split_type == "equal":
+            per_person = total_amount / num_people
+            msg_extra = f"Each owes: ฿{per_person:,.2f}"
+        elif not msg_extra:
+            msg_extra = "Percentage split calculated."
+
+        return {
+            "status": "success", 
+            "message": f"Created split bill of ฿{total_amount:,} for {note}.\nSent invoices to {len(contact_ids)} friend(s).{msg_extra}"
+        }
     except Exception as e:
         db.rollback()
         return {"status": "error", "message": str(e)}
     finally:
         db.close()
 
-#------------------------------------saving---------------------------------------------------------------------------------------
+# ─── Savings & Budget ───
 def get_savings_analysis(user_id: int) -> Dict[str, Any]:
-    """Calculates budgets, current spending, and savings progress."""
     db = SessionLocal()
     try:
         goal = db.query(SavingsGoal).filter(SavingsGoal.user_id == user_id, SavingsGoal.is_active == True).first()
@@ -375,7 +392,6 @@ def get_savings_analysis(user_id: int) -> Dict[str, Any]:
         monthly_income = 50000.0
         spendable = monthly_income - target
         
-        # ⭐ SAFE MATH: Prevents crash if there are < 3 priorities
         weights = {}
         if len(priorities) == 1:
             weights[priorities[0]] = 1.0
@@ -442,7 +458,6 @@ def get_savings_analysis(user_id: int) -> Dict[str, Any]:
         db.close()
 
 def adjust_category_budget(user_id: int, from_category: str, to_category: str, amount: float) -> Dict[str, Any]:
-    """Shifts budget from a lower priority to a higher priority category."""
     db = SessionLocal()
     try:
         goal = db.query(SavingsGoal).filter(SavingsGoal.user_id == user_id, SavingsGoal.is_active == True).first()
@@ -457,7 +472,6 @@ def adjust_category_budget(user_id: int, from_category: str, to_category: str, a
         if priorities.index(from_category.lower()) < priorities.index(to_category.lower()):
             return {"status": "error", "message": f"Cannot shift budget. '{from_category}' is a higher priority than '{to_category}'."}
             
-        # In a real app, you would save these overrides to the DB. For the hackathon, we mock success.
         return {
             "status": "success",
             "data": {
@@ -487,8 +501,6 @@ def get_subscription_dashboard(user_id: int) -> Dict[str, Any]:
         alerts = []
         for s in subs:
             usage = s.usage_frequency or 0
-            
-            # Build a simple text-based graph
             bar = "█" * (usage // 10) + "░" * (10 - (usage // 10))
             
             card_name = "Unknown Card"
@@ -504,7 +516,6 @@ def get_subscription_dashboard(user_id: int) -> Dict[str, Any]:
                 alerts.append(f"⚠️ **Low Usage Warning:** You rarely use {s.merchant_name} ({usage}%). Consider cancelling to save ฿{s.amount:,.0f}/mo.")
             lines.append("")
 
-        # Check if balance is enough for the next month
         total_balance = sum(float(a.balance) for a in db.query(Account).filter(Account.user_id == user_id).all())
         if total_balance < monthly_total:
             alerts.append(f"🚨 **Insufficient Funds Alert:** Your balance (฿{total_balance:,.0f}) is lower than your monthly subscriptions (฿{monthly_total:,.0f}). You may face overdraft!")
@@ -518,5 +529,43 @@ def get_subscription_dashboard(user_id: int) -> Dict[str, Any]:
                 "yearly_total": yearly_total
             }
         }
+    finally:
+        db.close()
+
+# ─── Smart Investment ───
+def execute_investment(user_id: int, total_amount: float, plan_details: str) -> Dict[str, Any]:
+    """หักเงินจากบัญชีเพื่อลงทุน"""
+    db = SessionLocal()
+    try:
+        acc = db.query(Account).filter(Account.id == 1).first()
+        if not acc: 
+            return {"status": "error", "message": "Source account not found"}
+        if float(acc.balance) < total_amount:
+            return {"status": "error", "message": "Insufficient balance for this investment."}
+
+        # หักเงิน
+        acc.balance = float(acc.balance) - total_amount
+        
+        # บันทึก Transaction (สมมติ Account 4 คือ Brokerage Account)
+        tx = Transaction(
+            from_account_id=1, to_account_id=4, 
+            amount=total_amount,
+            transaction_type=TransactionType.TRANSFER,
+            status=TransactionStatus.COMPLETED,
+            category="investment",
+            note=f"Smart Invest: {plan_details[:50]}...",
+            completed_at=datetime.utcnow()
+        )
+        db.add(tx)
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": f"Successfully invested ฿{total_amount:,.2f}!\nNew balance: ฿{acc.balance:,.2f}",
+            "new_balance": float(acc.balance)
+        }
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
     finally:
         db.close()

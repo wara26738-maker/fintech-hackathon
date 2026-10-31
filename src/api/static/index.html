@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Your money, simplified.</title>
+    <!-- ⭐ โหลด styles.css -->
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<div class="app-container">
+    <div id="home-screen" class="screen active">
+        <p class="greet">GOOD EVENING</p>
+        <div class="head">
+            <h1 class="title">Your money,<br>simplified.</h1>
+            <div class="avatar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="8" r="4.2"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>
+            </div>
+        </div>
+        <div class="hero" onclick="openChat('')">
+            <svg class="deco" viewBox="0 0 150 240" fill="none">
+                <path d="M150 90c-30 6-58 30-70 80-10 40-30 55-80 70" stroke="rgba(255,255,255,.35)" stroke-width="1"/>
+                <ellipse cx="135" cy="215" rx="85" ry="60" fill="rgba(255,255,255,.07)"/>
+                <g fill="#f7efe4">
+                    <path d="M122 14c1 8 7 14 15 15-8 1-14 7-15 15-1-8-7-14-15-15 8-1 14-7 15-15z"/>
+                    <path d="M141 62c.4 3 2.6 5 5.5 5.5-3 .4-5 2.6-5.5 5.5-.4-3-2.6-5-5.5-5.5 3-.4 5-2.6 5.5-5.5z" opacity=".8"/>
+                </g>
+            </svg>
+            <div class="hero-top">
+                <div class="hero-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="#14264f"><path d="M12 1.5c.7 5.6 4.9 9.8 10.5 10.5-5.6.7-9.8 4.9-10.5 10.5C11.3 16.9 7.1 12.7 1.5 12 7.1 11.3 11.3 7.1 12 1.5z"/></svg>
+                </div>
+                <div>
+                    <p class="hero-title">Your AI money assistant</p>
+                    <p class="hero-sub">Smarter insights. Better decisions.</p>
+                </div>
+            </div>
+            <div class="bubble-hero">You spent 12% less on dining this week compared to last week. Want to see where you could save more?</div>
+            <button class="cta">Ask AI anything
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#14264f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+        </div>
+        <div class="sec">
+            <h2>Quick actions</h2>
+            <button class="link">See all
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14264f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+        </div>
+        <div class="grid">
+            <button class="tile" onclick="openChat('Transfer 500 to Sarah Work')">
+                <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14264f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h15M15 4l4 4-4 4M20 16H5M9 12l-4 4 4 4"/></svg></div>
+                <span>Transfers</span>
+            </button>
+            <button class="tile" onclick="openChat('Show my budget')">
+                <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="#14264f"><rect x="4" y="12" width="4" height="8" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="16" y="9" width="4" height="11" rx="1"/></svg></div>
+                <span>Budget</span>
+            </button>
+            <button class="tile" onclick="openChat('invest')">
+                <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14264f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></div>
+                <span>Investments</span>
+            </button>
+            <button class="tile" onclick="openChat('Show cards')">
+                <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14264f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 10h18"/></svg></div>
+                <span>Cards</span>
+            </button>
+            <button class="tile" onclick="openChat('Show subscription dashboard')">
+                <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14264f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="3"/><path d="M8 3v4M16 3v4M4 11h16"/></svg></div>
+                <span>Subscriptions</span>
+            </button>
+            <button class="tile" onclick="openChat('Show transactions')">
+                <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14264f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5M9 13h6M9 17h6M9 9h2"/></svg></div>
+                <span>Bills</span>
+            </button>
+        </div>
+        <div class="balance">
+            <div>
+                <div class="bal-label">Total balance
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c8190" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                </div>
+                <div class="amount">฿50,000.00</div>
+                <div class="delta">
+                    <b><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2f8f5b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17L17 7M8 7h9v9"/></svg>+3.2%</b> vs. last month
+                </div>
+            </div>
+            <svg class="spark" width="130" height="56" viewBox="0 0 130 56" fill="none">
+                <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8d9bc2" stop-opacity=".22"/><stop offset="1" stop-color="#8d9bc2" stop-opacity="0"/></linearGradient></defs>
+                <path d="M2 52C14 48 20 36 32 34s20 10 34 6 22-18 34-16 18-4 28-10V56H2z" fill="url(#g)"/>
+                <path d="M2 52C14 48 20 36 32 34s20 10 34 6 22-18 34-16 18-4 28-10" stroke="#aab4d0" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <div class="sec">
+            <h2>Recent transactions</h2>
+            <button class="link" onclick="openChat('Show transactions')">See all</button>
+        </div>
+        <ul class="tx">
+            <li>
+                <div class="circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14264f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v8M4 3v5a3 3 0 0 0 6 0V3M7 11v10M17 21V3c-2.5 1.5-4 4.5-4 8h4"/></svg></div>
+                <div class="tx-main"><div class="tx-name">Dining</div><div class="tx-date">Oct 24, 2025</div></div>
+                <div class="tx-amt">- ฿250.00</div>
+            </li>
+            <li>
+                <div class="circle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14264f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 11V7a3 3 0 0 1 6 0v4"/></svg></div>
+                <div class="tx-main"><div class="tx-name">Shopping</div><div class="tx-date">Oct 23, 2025</div></div>
+                <div class="tx-amt">- ฿1,200.00</div>
+            </li>
+        </ul>
+        <nav class="nav">
+            <button class="on" onclick="goHome()">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#14264f"><path d="M12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5L12 3z"/></svg>
+                Home
+            </button>
+            <button onclick="openChat('Show accounts')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a9b0c2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 14.5h2"/></svg>
+                Accounts
+            </button>
+            <button onclick="openChat('')">
+                <div class="ai-wrap">
+                    <div class="ai"><svg width="26" height="26" viewBox="0 0 24 24" fill="#14264f"><path d="M12 1.5c.7 5.6 4.9 9.8 10.5 10.5-5.6.7-9.8 4.9-10.5 10.5C11.3 16.9 7.1 12.7 1.5 12 7.1 11.3 11.3 7.1 12 1.5z"/></svg></div>
+                    AI
+                </div>
+            </button>
+            <button onclick="openChat('Show my budget')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#a9b0c2"><rect x="4" y="12" width="4" height="8" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="16" y="9" width="4" height="11" rx="1"/></svg>
+                Insights
+            </button>
+            <button onclick="openChat('help')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#8a90a0"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+                More
+            </button>
+        </nav>
+    </div>
+
+    <div id="chat-screen" class="screen">
+        <div class="chat-header">
+            <div class="back-btn" onclick="goHome()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </div>
+            <h1>Banking AI Assistant</h1>
+        </div>
+        
+        <div class="chat-area" id="chat">
+            <div class="chat-row ai">
+                <div class="ai-avatar">🤖</div>
+                <div class="chat-text">
+                    <div style="font-weight:600; margin-bottom: 0.5rem; color: var(--navy);">👋 Hello! I'm your AI money assistant.</div>
+                    <div style="font-size:0.85rem; color:#666; margin-bottom:0.5rem;">Try these actions:</div>
+                    <div class="quick-actions">
+                        <button class="quick-btn" onclick="quickSend('Check balance')">💵 Balance</button>
+                        <button class="quick-btn" onclick="quickSend('Transfer 500 to Sarah Work')">💸 Transfer</button>
+                        <button class="quick-btn" onclick="quickSend('Show subscription dashboard')">📈 Subs</button>
+                        <button class="quick-btn" onclick="openInvestModal()">📊 Smart Invest</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="input" placeholder="Type a message..." autofocus>
+            <button class="primary" id="send" onclick="send()">Send</button>
+        </div>
+
+        <div class="modal-overlay" id="invest-modal">
+            <div class="modal-content">
+                <h2>📈 AI Smart Investment</h2>
+                <p style="font-size: 0.75rem; color: #666; margin-bottom: 1rem;">AI will analyze real financial data to build a portfolio.</p>
+                <div class="form-group">
+                    <label>Investment Budget (THB)</label>
+                    <input type="number" id="inv-budget" value="10000" min="100">
+                </div>
+                <div class="form-group">
+                    <label>Risk Level</label>
+                    <select id="inv-risk">
+                        <option value="Low">Low (Conservative)</option>
+                        <option value="Medium" selected>Medium (Balanced)</option>
+                        <option value="High">High (Aggressive)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Your Goal</label>
+                    <input type="text" id="inv-goal" placeholder="e.g. Long-term growth" value="Long-term growth">
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn-cancel" onclick="closeModal('invest-modal')">Cancel</button>
+                    <button class="btn-submit" onclick="submitInvestment()">Analyze</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ⭐ โหลด script.js -->
+<script src="/static/script.js"></script>
+</body>
+</html>

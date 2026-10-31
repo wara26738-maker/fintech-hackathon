@@ -3,7 +3,8 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
@@ -36,6 +37,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Banking AI Agent API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
+# ⭐ ชี้ไปที่โฟลเดอร์ static
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+os.makedirs(STATIC_DIR, exist_ok=True)
+
+# ให้ FastAPI เข้าถึงไฟล์ CSS/JS ได้ผ่าน URL /static/...
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 class ChatRequest(BaseModel):
     message: str
     user_id: int = 1
@@ -58,10 +66,8 @@ class ChatResponse(BaseModel):
 
 @app.get("/")
 async def root():
-    # Read the HTML file directly from the same folder
-    html_path = os.path.join(os.path.dirname(__file__), "index.html")
-    with open(html_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    # เสิร์ฟไฟล์ index.html จากโฟลเดอร์ static
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 @app.get("/favicon.ico")
 async def favicon():
@@ -86,9 +92,7 @@ async def chat(request: ChatRequest):
                     result["reply"] = f"✅ Interpreting as '{retry_msg}'\n\n" + result["reply"]
                 return ChatResponse(**result)
         
-        print(f"🔍 DEBUG: message='{request.message}'")
         response = process_message(request.message, request.user_id)
-        print(f"🔍 DEBUG: response={response}")
         return ChatResponse(**response)
     except Exception as e:
         import traceback

@@ -87,21 +87,28 @@ def seed_data():
         db.commit()
         print(f"Added {len(accounts)} accounts")
         
-        # ─── Beneficiaries ───
+        # ─── Beneficiaries (⭐ อัปเดตให้ตรงกับ UI และมีชื่อซ้ำ) ───
         beneficiaries = [
             Beneficiary(
-                id=1, user_id=1, nickname="Mom",
-                full_name="Mrs. Sommai Jaidee",
+                id=1, user_id=1, nickname="Sarah",
+                full_name="Sarah Work",
                 phone="0891111111",
                 account_number="004-4-45678-9",
                 bank_name="KBank"
             ),
             Beneficiary(
-                id=2, user_id=1, nickname="Wife",
-                full_name="Ms. Somrak Jaidee",
+                id=2, user_id=1, nickname="Sarah",
+                full_name="Sarah Sister",
                 phone="0892222222",
                 account_number="005-5-56789-0",
                 bank_name="SCB"
+            ),
+            Beneficiary(
+                id=3, user_id=1, nickname="Mom",
+                full_name="Mrs. Sommai Jaidee",
+                phone="0893333333",
+                account_number="006-6-67890-1",
+                bank_name="BBL"
             ),
         ]
         db.add_all(beneficiaries)
