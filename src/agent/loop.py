@@ -10,7 +10,8 @@ from ..tools.banking import (
     transfer, get_subscriptions, cancel_subscription,
     get_cards, get_beneficiaries, find_beneficiary, find_all_beneficiaries,
     block_card, unblock_card, cancel_card,
-    get_savings_analysis, adjust_category_budget, create_split_bill
+    get_savings_analysis, adjust_category_budget, create_split_bill,
+    get_subscription_dashboard
 )
 
 _pending_otps: Dict[int, Dict[str, Any]] = {}
@@ -58,7 +59,8 @@ def _help_text() -> str:
             "  • 'Transfer 500 to Mom'\n\n"
             "🔄 Subscriptions:\n"
             "  • 'What am I paying for'\n"
-            "  • 'Cancel Netflix'\n\n"
+            "  • 'Cancel Netflix'\n"
+            "  • 'Show subscription dashboard'\n\n"
             "💳 Cards:\n"
             "  • 'Show cards'\n"
             "  • 'Block card 4111-1111-1111-1111'\n"
@@ -394,6 +396,16 @@ def _execute_action(action: str, params: Dict, user_id: int) -> Dict[str, Any]:
             result = get_subscriptions(user_id)
             if result["status"] == "success":
                 return {"reply": "🔄 Your subscriptions:", "status": "success", "tier": "green", "data": result["data"]}
+            return _error_response(result)
+
+        if action == "get_subscription_dashboard":
+            result = get_subscription_dashboard(user_id)
+            if result["status"] == "success":
+                d = result["data"]
+                reply = d["breakdown"]
+                if d["alerts"]:
+                    reply += f"\n\n{d['alerts']}"
+                return {"reply": reply, "status": "success", "tier": "green"}
             return _error_response(result)
 
         if action == "get_beneficiaries":

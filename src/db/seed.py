@@ -180,19 +180,22 @@ def seed_data():
                 user_id=1, account_id=1,
                 merchant_name="Netflix", amount=419,
                 billing_cycle="monthly",
-                next_billing_date=now + timedelta(days=10)
+                next_billing_date=now + timedelta(days=10),
+                usage_frequency=20  # ⭐ Low usage = alert!
             ),
             Subscription(
                 user_id=1, account_id=1,
                 merchant_name="Spotify", amount=159,
                 billing_cycle="monthly",
-                next_billing_date=now + timedelta(days=5)
+                next_billing_date=now + timedelta(days=5),
+                usage_frequency=85  # ⭐ High usage
             ),
             Subscription(
                 user_id=1, account_id=1,
                 merchant_name="iCloud+", amount=35,
                 billing_cycle="monthly",
-                next_billing_date=now + timedelta(days=20)
+                next_billing_date=now + timedelta(days=20),
+                usage_frequency=60
             ),
         ]
         db.add_all(subscriptions)

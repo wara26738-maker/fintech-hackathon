@@ -10,7 +10,7 @@ load_dotenv()
 
 SYSTEM_PROMPT = """You are an intent parser for a banking AI agent.
 Convert user messages (Thai or English) into JSON.
-Available actions: get_balance, get_accounts, get_transactions, get_cards, get_subscriptions, get_beneficiaries, transfer, cancel_subscription, block_card, unblock_card, cancel_card, report_card_lost, get_user, help, unknown, get_savings_analysis, adjust_budget, split_bill, schedule_transfer.
+Available actions: get_balance, get_accounts, get_transactions, get_cards, get_subscriptions, get_beneficiaries, transfer, cancel_subscription, block_card, unblock_card, cancel_card, report_card_lost, get_user, help, unknown, get_savings_analysis, adjust_budget, split_bill, schedule_transfer, get_subscription_dashboard.
 Strictly use these parameter keys:
 - For transfer: {"beneficiary_name": "mom", "amount": 500, "category": "food"}
 - For cancel_subscription: {"merchant_name": "Netflix"} OR {"subscription_id": 1}
@@ -98,6 +98,10 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
     if any(k in text_lower for k in ["ธุรกรรม", "รายการ", "transaction", "ประวัติ", "ใช้จ่าย"]):
         return {"action": "get_transactions", "params": {"limit": 10}, "confidence": 0.9}
 
+    # ⭐ NEW: Subscription Dashboard Trigger
+    if any(k in text_lower for k in ["dashboard", "direct debit", "usage", "manage subs"]):
+        return {"action": "get_subscription_dashboard", "params": {}, "confidence": 0.95}
+
     if any(k in text_lower for k in ["subscription", "subs", "หักเงิน", "ตัดเงิน", "รายเดือน", "สมาชิก", "paying for", "am i paying"]):
         return {"action": "get_subscriptions", "params": {}, "confidence": 0.9}
 
@@ -110,7 +114,8 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
         if match:
             return {"action": "adjust_budget", "params": {"amount": int(match.group(1)), "from_category": match.group(2), "to_category": match.group(3)}, "confidence": 0.9}
 
-    if any(k in text_lower for k in ["savings", "budget", "spending", "goal", "ออม", "งบประมาณ", "รายจ่าย"]):
+    # ⭐ Added "show my budget" to catch it immediately
+    if any(k in text_lower for k in ["savings", "budget", "spending", "goal", "ออม", "งบประมาณ", "รายจ่าย", "show my budget"]):
         return {"action": "get_savings_analysis", "params": {}, "confidence": 0.9}
 
     # ⭐ สำคัญมาก: ต้องเช็ค Cancel Card ก่อน Cancel Subscription เสมอ
@@ -188,8 +193,9 @@ def parse_with_mock(text: str) -> Dict[str, Any]:
 
 
 def parse_with_deepseek(text: str) -> Dict[str, Any]:
-    # ⭐ INTERCEPT: If it's the Savings Modal command, don't call DeepSeek
     text_lower = text.lower().strip()
+    
+    # ⭐ Intercept the modal commands before calling DeepSeek
     if "set savings goal" in text_lower:
         match = re.search(r'set savings goal\s+(\d+)\s+priorities\s+([a-zA-Z,]+)', text_lower)
         if match:
@@ -210,9 +216,11 @@ def parse_with_deepseek(text: str) -> Dict[str, Any]:
         content = response.choices[0].message.content
         content = content.replace("```json", "").replace("```", "").strip()
         return json.loads(content)
+        
     except Exception as e:
         print(f"🚨 DEEPSEEK ERROR: {e}")
-        return {"action": "unknown", "params": {"error": str(e)}, "confidence": 0.0}
+        # ⭐ FALLBACK: If DeepSeek fails, use the local mock parser
+        return parse_with_mock(text)
 
 
 def parse_with_openai(text: str) -> Dict[str, Any]:
@@ -247,5 +255,8 @@ def describe_intent(intent: Dict[str, Any]) -> str:
     action = intent.get("action", "unknown")
     params = intent.get("params", {})
     confidence = intent.get("confidence", 0.0)
-    desc = f"Action: {action}, Confidence: {confidence:.2f}, Params: {params}"
+    desc = f"Action: {action}"
+    if params:
+        desc += f" | Params: {params}"
+    desc += f" | Confidence: {confidence:.2f}"
     return desc

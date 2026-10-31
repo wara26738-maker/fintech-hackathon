@@ -131,6 +131,9 @@ class Subscription(Base):
     next_billing_date = Column(DateTime)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # ⭐ NEW: Track usage (0 = never, 100 = daily)
+    usage_frequency = Column(Integer, default=50)
 
     def __repr__(self):
         return f"<Subscription {self.merchant_name} ฿{self.amount}>"

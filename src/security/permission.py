@@ -45,6 +45,8 @@ GREEN_ACTIONS = {
     "help",
     "set_savings_goal",
     "get_savings_analysis",
+    "get_subscription_dashboard", # ⭐ Add this!
+    "adjust_budget"            # ⭐ Add this! (Shifting budget is instant)
 }
 
 # Actions ที่เป็น Yellow (ต้องยืนยัน)

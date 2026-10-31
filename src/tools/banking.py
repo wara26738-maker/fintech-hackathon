@@ -365,26 +365,17 @@ def get_savings_analysis(user_id: int) -> Dict[str, Any]:
     try:
         goal = db.query(SavingsGoal).filter(SavingsGoal.user_id == user_id, SavingsGoal.is_active == True).first()
         
-        # ⭐ If no goal exists, default to safe values instead of crashing
         if not goal:
             target = 0.0
             priorities = ["food", "housing", "transportation", "entertainment", "subscription", "card"]
         else:
             target = float(goal.target_amount)
             priorities = [p.strip().lower() for p in goal.priority_ranking.split(",") if p.strip()]
-        
+
         monthly_income = 50000.0
-        target = float(goal.target_amount)
         spendable = monthly_income - target
-            # Calculate category budgets based on priority ranking
-        priorities = goal.priority_ranking.split(",")
-        # We assign weights: Highest priority gets 30%, next 25%, next 20%, then remaining split
-        weights = {priorities[0]: 0.30, priorities[1]: 0.25, priorities[2]: 0.20}
         
-        remaining_weight = 0.25
-        remaining_cats = priorities[3:]
-        for cat in remaining_cats:
-            weights[cat] = remaining_weight / len(remaining_cats) if remaining_cats else 0
+        # ⭐ SAFE MATH: Prevents crash if there are < 3 priorities
         weights = {}
         if len(priorities) == 1:
             weights[priorities[0]] = 1.0
@@ -403,7 +394,7 @@ def get_savings_analysis(user_id: int) -> Dict[str, Any]:
             remaining_cats = priorities[3:]
             for cat in remaining_cats:
                 weights[cat] = remaining_weight / len(remaining_cats) if remaining_cats else 0
-        # Get current month's transactions
+
         now = datetime.utcnow()
         start_of_month = datetime(now.year, now.month, 1)
         
@@ -418,7 +409,7 @@ def get_savings_analysis(user_id: int) -> Dict[str, Any]:
             cat = tx.category.lower() if tx.category else "other"
             if cat in spent_by_cat:
                 spent_by_cat[cat] += float(tx.amount)
-        #build report
+
         report = []
         total_spent = 0
         for cat in priorities:
@@ -471,6 +462,60 @@ def adjust_category_budget(user_id: int, from_category: str, to_category: str, a
             "status": "success",
             "data": {
                 "message": f"Successfully shifted ฿{amount:,.0f} from {from_category.capitalize()} to {to_category.capitalize()} to cover overspending. Your savings goal remains safe!"
+            }
+        }
+    finally:
+        db.close()
+
+def get_subscription_dashboard(user_id: int) -> Dict[str, Any]:
+    db = SessionLocal()
+    try:
+        subs = db.query(Subscription).filter(
+            Subscription.user_id == user_id, Subscription.is_active == True
+        ).all()
+        
+        if not subs:
+            return {"status": "error", "message": "No active subscriptions found."}
+
+        monthly_total = sum(float(s.amount) for s in subs)
+        yearly_total = monthly_total * 12
+        
+        lines = [f"📊 **Subscription Dashboard**\n"]
+        lines.append(f"💵 **Monthly Cost:** ฿{monthly_total:,.0f}")
+        lines.append(f"📅 **Yearly Cost:** ฿{yearly_total:,.0f}\n")
+        
+        alerts = []
+        for s in subs:
+            usage = s.usage_frequency or 0
+            
+            # Build a simple text-based graph
+            bar = "█" * (usage // 10) + "░" * (10 - (usage // 10))
+            
+            card_name = "Unknown Card"
+            card_info = db.query(Card).filter(Card.account_id == s.account_id).first()
+            if card_info:
+                card_name = f"****{card_info.card_number[-4:]}"
+                
+            lines.append(f"• **{s.merchant_name}** (฿{s.amount:,.0f}/mo)")
+            lines.append(f"  💳 Paying with: {card_name}")
+            lines.append(f"  📈 Usage: [{bar}] {usage}%")
+            
+            if usage <= 25:
+                alerts.append(f"⚠️ **Low Usage Warning:** You rarely use {s.merchant_name} ({usage}%). Consider cancelling to save ฿{s.amount:,.0f}/mo.")
+            lines.append("")
+
+        # Check if balance is enough for the next month
+        total_balance = sum(float(a.balance) for a in db.query(Account).filter(Account.user_id == user_id).all())
+        if total_balance < monthly_total:
+            alerts.append(f"🚨 **Insufficient Funds Alert:** Your balance (฿{total_balance:,.0f}) is lower than your monthly subscriptions (฿{monthly_total:,.0f}). You may face overdraft!")
+
+        return {
+            "status": "success",
+            "data": {
+                "breakdown": "\n".join(lines),
+                "alerts": "\n\n".join(alerts) if alerts else "",
+                "monthly_total": monthly_total,
+                "yearly_total": yearly_total
             }
         }
     finally:
