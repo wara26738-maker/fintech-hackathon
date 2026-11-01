@@ -1,12 +1,21 @@
 # src/api/main.py
 import os
 from contextlib import asynccontextmanager
+import sys
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
+# ⭐ SAFE uvloop: prevents crash if not installed on Linux/Mac
+if sys.platform != "win32":
+    try:
+        import uvloop
+        uvloop.install()
+    except ImportError:
+        pass
+    
 from ..agent.loop import process_message, confirm_action, verify_otp, handle_suggestion, has_pending_suggestion
 from ..db.session import init_db
 
