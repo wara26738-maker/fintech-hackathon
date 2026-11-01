@@ -82,6 +82,9 @@ python main.py
 
 # 7. Run on the local host
 uvicorn src.api.main:app --reload
+#if not work use
+python-m uvicorn src.api.main:app --reload
+#will get link
 http://localhost:8000
 
 #reset data
