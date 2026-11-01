@@ -222,9 +222,15 @@ def get_app_html() -> str:
         .back-btn { background: rgba(255,255,255,0.2); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 0.5rem; }
         .header h1 { font-size: 1rem; font-weight: 600; }
         
-        .chat-area { flex: 1; overflow-y: auto; padding: 0.5rem; background: #f7f8fc; }
+        .chat-area {
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 0.5rem; 
+            background: #f7f8fc;
+            /* ลบ display: flex; และ flex-direction: column; ออก */
+        }
         
-        .message { margin-bottom: 0.75rem; display: flex; animation: slideUp 0.3s ease-out; }
+        .message { margin-bottom: 0.75rem; display: flex; animation: slideUp 0.3s ease-out; flex-shrink: 0;}
         @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         
         .message.user { justify-content: flex-end; align-items: flex-start; gap: 0.5rem; }
@@ -241,7 +247,6 @@ def get_app_html() -> str:
             max-width: 85%; padding: 0.75rem 1rem; border-radius: 16px; font-size: 0.875rem;
             line-height: 1.5; word-wrap: break-word; white-space: normal;
             box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            width: fit-content; 
         }
         .user .bubble { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-bottom-right-radius: 4px; }
         .ai .bubble { background: white; color: #333; border-bottom-left-radius: 4px; border: 1px solid #f0f0f0; }
