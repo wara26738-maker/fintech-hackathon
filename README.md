@@ -19,8 +19,8 @@
 |---|---|
 | `Check balance` | View your balance |
 | `Show transactions` | Recent transactions |
-| `Smart Invest` | ????? |
-| `Setup Goal` | ????? |
+| `Smart Invest` | Suggest investment |
+| `Setup Goal` | Help user stay on-track goal |
 | `Transfer 500 to Mom` | Send money (🟡 confirm) |
 | `Transfer 5000 to Mom` | Send money (🔴 OTP) |
 | `What am I paying for` | View subscriptions |
