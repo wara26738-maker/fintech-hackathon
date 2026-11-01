@@ -135,7 +135,6 @@ def get_chat_html() -> str:
         .header h1 { font-size: 1rem; font-weight: 600; }
         .chat-area { flex: 1; overflow-y: auto; padding: 0.5rem; background: #f7f8fc; }
         
-        /* ⭐ ปรับปรุง Animation ให้ลื่นไหลขึ้น */
         .message { margin-bottom: 0.75rem; display: flex; animation: slideUp 0.3s ease-out; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         
@@ -149,11 +148,11 @@ def get_chat_html() -> str:
         .ai-avatar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
         .user-avatar { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
 
-        /* ⭐ ปรับปรุงบับเบิ้ลข้อความให้ดูพรีเมียมขึ้น */
         .bubble {
             max-width: 85%; padding: 0.75rem 1rem; border-radius: 16px; font-size: 0.875rem;
-            line-height: 1.5; word-wrap: break-word; white-space: pre-wrap;
+            line-height: 1.5; word-wrap: break-word; white-space: normal;
             box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            width: fit-content; 
         }
         .user .bubble { 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
@@ -166,7 +165,6 @@ def get_chat_html() -> str:
             border: 1px solid #f0f0f0;
         }
         
-        /* ⭐ เน้นคำสำคัญ (Markdown) */
         .ai .bubble b { color: #14264f; font-weight: 700; }
 
         /* ⭐ UI: Total Balance Card */
@@ -190,7 +188,84 @@ def get_chat_html() -> str:
         }
         .chart-title { font-size: 14px; font-weight: 700; color: #14264f; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
         .chart-container { position: relative; height: 180px; width: 100%; margin-bottom: 12px; }
-        .chart-text { font-size: 12px; color: #555; line-height: 1.5; white-space: pre-wrap; }
+        .chart-text { font-size: 12px; color: #555; line-height: 1.5; white-space: normal; }
+
+        /* ⭐ UI: Action Card (Confirmations) */
+        .action-card {
+            background: #fffbeb; border: 1px solid #fcd34d; border-radius: 16px; padding: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; min-width: 280px;
+        }
+        .action-title { font-size: 14px; font-weight: 800; color: #d97706; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .action-desc { font-size: 14px; color: #333; margin-bottom: 16px; line-height: 1.5; }
+        .action-desc b { color: #b45309; }
+        .action-buttons { display: flex; gap: 8px; }
+        .action-btn { flex: 1; padding: 8px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; border: none; transition: 0.2s; }
+        .action-yes { background: #10b981; color: white; }
+        .action-yes:hover { background: #059669; }
+        .action-no { background: white; border: 1px solid #d1d5db; color: #6b7280; }
+        .action-no:hover { background: #f3f4f6; }
+
+        /* ⭐ UI: Success Card */
+        .success-card {
+            background: white; border-radius: 20px; border: 2px solid #10b981;
+            padding: 20px; box-shadow: 0 8px 25px rgba(16, 185, 129, 0.15);
+            width: 100%; min-width: 300px;
+        }
+        .success-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+        .success-title { font-size: 16px; font-weight: 800; color: #14264f; }
+        .success-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; color: #555; }
+        .success-row b { color: #14264f; font-size: 15px; }
+        .success-divider { border-top: 1px dashed #ccc; margin: 16px 0; }
+        .success-footer { font-size: 13px; color: #333; text-align: center; }
+        
+        /* ⭐ ปุ่ม Check Portfolio ใน Success Card */
+        .btn-check-portfolio {
+            width: 100%; padding: 10px; margin-top: 16px;
+            background: #10b981; color: white; border: none; border-radius: 12px;
+            font-size: 14px; font-weight: 700; cursor: pointer;
+            transition: all 0.2s; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+        }
+        .btn-check-portfolio:hover { background: #059669; transform: translateY(-2px); }
+
+        /* ⭐ UI: E-Bill & Receipt */
+        .receipt-card, .ebill-card {
+            background: white; border-radius: 16px; padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px dashed #ccc;
+            margin-top: 4px; width: 100%; min-width: 300px; position: relative;
+        }
+        .ebill-card { border: 1px solid #f0f0f0; box-shadow: 0 8px 25px rgba(0,0,0,0.08); border-radius: 20px; padding: 24px; }
+        .receipt-header { font-size: 16px; font-weight: 800; color: #14264f; text-align: center; margin-bottom: 16px; letter-spacing: 1px; }
+        .receipt-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; color: #555; }
+        .receipt-row b { color: #14264f; font-size: 15px; }
+        .receipt-divider { border-top: 1px dashed #ccc; margin: 12px 0; }
+        .receipt-footer { font-size: 13px; color: #7c8190; text-align: center; font-weight: 500; }
+        .receipt-list { font-size: 13px; color: #444; margin-top: 8px; padding-left: 4px; }
+        
+        .ebill-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #ddd; padding-bottom: 12px; margin-bottom: 16px; }
+        .ebill-title { font-size: 14px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .ebill-status { background: #dcfce7; color: #16a34a; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+        .ebill-amount { font-size: 32px; font-weight: 800; color: #14264f; text-align: center; margin-bottom: 20px; letter-spacing: -1px; }
+        .ebill-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 13px; color: #555; }
+        .ebill-row span:last-child { font-weight: 600; color: #14264f; text-align: right; }
+        .ebill-footer { border-top: 1px dashed #ddd; padding-top: 16px; margin-top: 16px; text-align: center; font-size: 11px; color: #999; }
+        .ebill-barcode { height: 24px; width: 70%; margin: 10px auto 0; background: repeating-linear-gradient(90deg, #14264f, #14264f 2px, transparent 2px, transparent 4px, #14264f 4px, #14264f 5px, transparent 5px, transparent 9px); opacity: 0.6; border-radius: 2px; }
+
+        /* ⭐ UI: AI Portfolio Card */
+        .portfolio-card {
+            background: linear-gradient(135deg, #14264f 0%, #1c3363 100%);
+            color: white; border-radius: 20px; padding: 20px;
+            box-shadow: 0 10px 30px rgba(20,38,79,0.4); width: 100%; min-width: 300px;
+        }
+        .portfolio-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .portfolio-title { font-size: 14px; font-weight: 700; color: #d3d9e8; text-transform: uppercase; letter-spacing: 1px; }
+        .portfolio-list { display: flex; flex-direction: column; gap: 10px; }
+        .portfolio-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; }
+        .portfolio-item-left { display: flex; flex-direction: column; }
+        .portfolio-item-symbol { font-size: 14px; font-weight: 700; }
+        .portfolio-item-name { font-size: 11px; color: #9ca3af; }
+        .portfolio-item-right { text-align: right; }
+        .portfolio-item-value { font-size: 14px; font-weight: 700; }
+        .portfolio-item-pnl { font-size: 11px; font-weight: 600; color: #9ca3af; }
 
         .data-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.75rem; white-space: normal; }
         .data-table th { text-align: left; padding: 0.375rem 0.25rem; border-bottom: 1px solid #eee; color: #666; font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; }
@@ -216,22 +291,15 @@ def get_chat_html() -> str:
         .typing::after { content: '...'; animation: dots 1.5s steps(4, end) infinite; }
         @keyframes dots { 0%, 20% { content: ''; } 40% { content: '.'; } 60% { content: '..'; } 80%, 100% { content: '...'; } }
 
-        .confirm-buttons { display: flex; gap: 0.375rem; margin-top: 0.5rem; }
-        .confirm-btn { padding: 0.375rem 0.625rem; border: none; border-radius: 6px; font-size: 0.6875rem; font-weight: 600; cursor: pointer; transition: all 0.15s; flex: 1; }
-        .confirm-yes { background: #10b981; color: white; }
-        .confirm-yes:hover { background: #059669; transform: translateY(-1px); }
-        .confirm-no { background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb; }
-        .confirm-no:hover { background: #e5e7eb; }
-
         .welcome-title { font-size: 0.875rem; font-weight: 700; color: #333; margin-bottom: 0.25rem; }
         .welcome-subtitle { font-size: 0.75rem; color: #666; margin-bottom: 0.75rem; }
-        .feature-group { margin-bottom: 0.5rem; }
+        .feature-group { margin-bottom: 0.75rem; }
         .feature-label { display: block; font-size: 0.625rem; font-weight: 700; color: #667eea; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem; }
-        .quick-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; }
-        .quick-btn { padding: 0.25rem 0.5rem; background: #f0f2ff; color: #667eea; border: 1px solid #e0e3ff; border-radius: 8px; font-size: 0.6875rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+        .quick-actions { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+        .quick-btn { padding: 0.3rem 0.5rem; background: #f0f2ff; color: #667eea; border: 1px solid #e0e3ff; border-radius: 8px; font-size: 0.6875rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
         .quick-btn:hover { background: #667eea; color: white; }
         .quick-btn.active { background: #667eea; color: white; }
-        .welcome-tip { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #eee; color: #888; font-size: 0.625rem; font-style: italic; }
+        .welcome-tip { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #eee; color: #888; font-size: 0.625rem; font-style: italic; }
 
         /* Modal CSS */
         .modal-overlay {
@@ -265,10 +333,9 @@ def get_chat_html() -> str:
         <div class="chat-area" id="chat">
             <div class="message ai">
                 <div class="ai-avatar">🤖</div>
-                <div class="bubble" style="max-width: 100%;">
+                <div class="bubble">
                     <div class="welcome-title">👋 Hello! I'm your AI banking assistant.</div>
                     <div class="welcome-subtitle">Click any button to try:</div>
-                    
                     <div class="feature-group">
                         <span class="feature-label">💸 Smart Transfers</span>
                         <div class="quick-actions">
@@ -277,7 +344,6 @@ def get_chat_html() -> str:
                             <button class="quick-btn" onclick="openSplitMethodModal()">🍕 Split Bill</button>
                         </div>
                     </div>
-
                     <div class="feature-group">
                         <span class="feature-label">💰 Finance & Wealth</span>
                         <div class="quick-actions">
@@ -286,9 +352,9 @@ def get_chat_html() -> str:
                             <button class="quick-btn" onclick="openSavingsModal()">🎯 Setup Goal</button>
                             <button class="quick-btn" onclick="quickSend('Show my budget')">📈 Check Goal</button>
                             <button class="quick-btn" onclick="openInvestModal()">📈 Smart Invest</button>
+                            <button class="quick-btn" onclick="quickSend('Show portfolio')">💼 Portfolio</button>
                         </div>
                     </div>
-                    
                     <div class="feature-group">
                         <span class="feature-label">🔄 Subs & Cards</span>
                         <div class="quick-actions">
@@ -299,7 +365,6 @@ def get_chat_html() -> str:
                             <button class="quick-btn" onclick="openCancelCardModal()">❌ Cancel Card</button>
                         </div>
                     </div>
-                    
                     <div class="welcome-tip">
                         💡 I understand natural language — try any way!
                     </div>
@@ -311,7 +376,7 @@ def get_chat_html() -> str:
             <button class="primary" id="send" onclick="send()">Send</button>
         </div>
 
-        <!-- ⭐ Modal Transfer -->
+        <!-- Modals -->
         <div class="modal-overlay" id="transfer-modal">
             <div class="modal-content">
                 <h2>✉️ Transfer Money</h2>
@@ -335,7 +400,6 @@ def get_chat_html() -> str:
             </div>
         </div>
 
-        <!-- ⭐ Modal Recurring -->
         <div class="modal-overlay" id="recurring-modal">
             <div class="modal-content">
                 <h2>🔄 Recurring Payment</h2>
@@ -363,7 +427,6 @@ def get_chat_html() -> str:
             </div>
         </div>
 
-        <!-- ⭐ Modal Split Method (Step 1) -->
         <div class="modal-overlay" id="split-method-modal">
             <div class="modal-content">
                 <h2>🍕 Split Bill</h2>
@@ -378,7 +441,6 @@ def get_chat_html() -> str:
             </div>
         </div>
 
-        <!-- ⭐ Modal Split Details (Step 2) -->
         <div class="modal-overlay" id="split-details-modal">
             <div class="modal-content">
                 <h2 id="split-details-title">🍕 Equal Split</h2>
@@ -411,7 +473,6 @@ def get_chat_html() -> str:
             </div>
         </div>
         
-        <!-- ⭐ Modal Savings Goal -->
         <div class="modal-overlay" id="savingsModal">
             <div class="modal-content">
                 <h2>🎯 Setup Savings Goal</h2>
@@ -444,7 +505,6 @@ def get_chat_html() -> str:
             </div>
         </div>
 
-        <!-- ⭐ Modal Smart Investment -->
         <div class="modal-overlay" id="invest-modal">
             <div class="modal-content">
                 <h2>📈 AI Smart Investment</h2>
@@ -472,7 +532,6 @@ def get_chat_html() -> str:
             </div>
         </div>
 
-        <!-- ⭐ Modal Block Card -->
         <div class="modal-overlay" id="block-card-modal">
             <div class="modal-content">
                 <h2>🔒 Block a Card</h2>
@@ -487,7 +546,6 @@ def get_chat_html() -> str:
             </div>
         </div>
 
-        <!-- ⭐ Modal Cancel Card -->
         <div class="modal-overlay" id="cancel-card-modal">
             <div class="modal-content">
                 <h2>❌ Cancel a Card</h2>
@@ -630,10 +688,10 @@ def get_chat_html() -> str:
         
         function parseInvestmentText(text) {
             const assets = [];
-            const lines = text.split('\\n');
+            const lines = text.split('\\n'); // ⭐ แก้ไขการตัดบรรทัด
             let currentAsset = null;
             for (let line of lines) {
-                if (line.startsWith('• **')) {
+                if (line.trim().startsWith('• **')) {
                     const match = line.match(/• \*\*(.*?)\*\* \((.*?)\)/);
                     if (match) {
                         currentAsset = { name: match[2], symbol: match[1], alloc: 0 };
@@ -649,7 +707,7 @@ def get_chat_html() -> str:
 
         function parseSubText(text) {
             const subs = [];
-            const lines = text.split('\\n');
+            const lines = text.split('\\n'); // ⭐ แก้ไขการตัดบรรทัด
             for (let line of lines) {
                 const match = line.match(/• \*\*(.*?)\*\* \(฿(\d+)\/mo\)/);
                 if (match) {
@@ -684,6 +742,197 @@ def get_chat_html() -> str:
                     }
                 }
             });
+        }
+
+        // ⭐ ฟังก์ชันสร้างใบเสร็จ Split Bill
+        function renderReceiptCard(text) {
+            const amountMatch = text.match(/฿([\d,]+)/);
+            const amount = amountMatch ? amountMatch[1] : "0";
+            const noteMatch = text.match(/for (.*?)\./);
+            const note = noteMatch ? noteMatch[1] : "Bill";
+            const friendsMatch = text.match(/Split with: (.*)/);
+            const friends = friendsMatch ? friendsMatch[1] : "";
+
+            if (text.includes("Each owes:")) {
+                const eachOwesMatch = text.match(/Each owes: ฿([\d,.]+)/);
+                const eachOwes = eachOwesMatch ? eachOwesMatch[1] : "0";
+                return `
+                <div class="receipt-card">
+                    <div class="receipt-header">🧾 Split Bill Receipt</div>
+                    <div class="receipt-row"><span>Note:</span> <b>${note}</b></div>
+                    <div class="receipt-row"><span>Total Amount:</span> <b>฿${amount}</b></div>
+                    <div class="receipt-divider"></div>
+                    <div class="receipt-row"><span>Each owes:</span> <b>฿${eachOwes}</b></div>
+                    <div class="receipt-footer" style="margin-top: 12px;">Split with: ${friends}</div>
+                </div>`;
+            } else if (text.includes("Friend 1:")) {
+                const regex = /- Friend \d+: (\d+)% \(฿([\d,.]+)\)/g;
+                let match;
+                const percentages = [];
+                const labels = [];
+                const data = [];
+                let i = 1;
+                while ((match = regex.exec(text)) !== null) {
+                    percentages.push(`Friend ${i}: ${match[1]}% (฿${match[2]})`);
+                    labels.push(`Friend ${i}`);
+                    data.push(parseFloat(match[1]));
+                    i++;
+                }
+                const totalPct = data.reduce((a,b)=>a+b, 0);
+                if (totalPct < 100) {
+                    data.push(100 - totalPct);
+                    labels.push("You");
+                }
+
+                const chartId = 'chart-receipt-' + Date.now();
+                setTimeout(() => {
+                    initChart(chartId, labels, data, ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe']);
+                }, 100);
+
+                return `
+                <div class="receipt-card">
+                    <div class="receipt-header">🧾 Split Bill (Percentage)</div>
+                    <div class="receipt-row"><span>Note:</span> <b>${note}</b></div>
+                    <div class="receipt-row"><span>Total Amount:</span> <b>฿${amount}</b></div>
+                    <div class="chart-container" style="height: 140px; margin: 10px 0;"><canvas id="${chartId}"></canvas></div>
+                    <div class="receipt-list">${percentages.map(p => `<div>${p}</div>`).join('')}</div>
+                    <div class="receipt-divider"></div>
+                    <div class="receipt-footer">Split with: ${friends}</div>
+                </div>`;
+            }
+            return text; // Fallback
+        }
+
+        // ⭐ ฟังก์ชันสร้าง E-Bill (Transfer)
+        function renderTransferBill(text) {
+            const amountMatch = text.match(/Transferred ฿([\d,]+)/);
+            const amount = amountMatch ? amountMatch[1] : "0";
+            const toMatch = text.match(/to (.*?)\\n/);
+            const to = toMatch ? toMatch[1] : "Recipient";
+            const balMatch = text.match(/New balance: ฿([\d,]+)/);
+            const newBalance = balMatch ? balMatch[1] : "0";
+            
+            let extraText = "";
+            const alertMatch = text.match(/(🚨.*)/s);
+            if (alertMatch) {
+                extraText = `<div style="margin-top: 15px; font-size: 11px; color: #d97706; background: #fffbeb; padding: 10px; border-radius: 8px;">${alertMatch[1].replace(/\\n/g, '<br>')}</div>`;
+            }
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+            return `
+            <div class="ebill-card">
+                <div class="ebill-header">
+                    <div class="ebill-title">🧾 Transfer e-Bill</div>
+                    <div class="ebill-status">✅ Completed</div>
+                </div>
+                <div class="ebill-amount">฿${amount}.00</div>
+                <div class="ebill-row"><span>To</span> <span>${to}</span></div>
+                <div class="ebill-row"><span>From</span> <span>Savings Account</span></div>
+                <div class="ebill-row"><span>Date</span> <span>${dateStr} ${timeStr}</span></div>
+                <div class="ebill-row"><span>New Balance</span> <span>฿${newBalance}.00</span></div>
+                ${extraText}
+                <div class="ebill-footer">
+                    Thank you for using Banking AI
+                    <div class="ebill-barcode"></div>
+                </div>
+            </div>`;
+        }
+
+        // ⭐ ฟังก์ชันสร้าง Action Card (Confirm)
+        function renderActionCard(text) {
+            let actionText = text.split("Confirm?")[0].trim().replace(/\\n/g, '<br>');
+            return `
+            <div class="action-card">
+                <div class="action-title">⚠️ Action Required</div>
+                <div class="action-desc">${actionText}</div>
+                <div class="action-buttons">
+                    <button class="action-btn action-yes" onclick="this.innerHTML='✅ Confirmed'; this.disabled=true; input.value='y'; send();">✅ Confirm</button>
+                    <button class="action-btn action-no" onclick="this.innerHTML='❌ Cancelled'; this.disabled=true; input.value='n'; send();">❌ Cancel</button>
+                </div>
+            </div>`;
+        }
+
+        // ⭐ ฟังก์ชันสร้าง Success Card
+        function renderSuccessCard(text) {
+            const amtMatch = text.match(/Successfully invested ฿([\d,.]+)/);
+            const balMatch = text.match(/New balance: ฿([\d,.]+)/);
+            const symbolsMatch = text.match(/portfolio \((.*?)\)/);
+
+            const amount = amtMatch ? amtMatch[1] : "0";
+            const balance = balMatch ? balMatch[1] : "0";
+            const symbols = symbolsMatch ? symbolsMatch[1] : "";
+
+            return `
+            <div class="success-card">
+                <div class="success-header">
+                    <span style="font-size: 24px;">🎉</span>
+                    <div class="success-title">Investment Successful!</div>
+                </div>
+                <div class="success-row"><span>Invested Amount</span> <b>฿${amount}</b></div>
+                <div class="success-row"><span>New Cash Balance</span> <b>฿${balance}</b></div>
+                <div class="success-divider"></div>
+                <div class="success-footer">
+                    <div style="font-weight: 600; color: #14264f; margin-bottom: 4px;">Assets Added:</div>
+                    <div style="font-size: 13px; color: #666;">${symbols}</div>
+                    
+                    <button class="btn-check-portfolio" onclick="input.value='Show portfolio'; send();">
+                        💼 View My Portfolio
+                    </button>
+                </div>
+            </div>`;
+        }
+
+        // ⭐ ฟังก์ชันสร้าง AI Portfolio Tracker (กรองข้อมูลขยะ)
+        function renderPortfolioCard() {
+            const portfolio = JSON.parse(localStorage.getItem('ai_portfolio') || '[]');
+            
+            if (portfolio.length === 0) {
+                return `<div class="bubble" style="background:white; padding:16px;">You don't have any AI portfolio yet. Try saying "invest 10000 risk Medium goal Long-term growth"!</div>`;
+            }
+
+            // Group by symbol
+            const grouped = {};
+            portfolio.forEach(p => {
+                // ⭐ กรองข้อมูลที่ผิดพลาด (NaN หรือ undefined) ออก
+                if(!p || !p.symbol || p.symbol === 'undefined' || isNaN(p.shares) || isNaN(p.cost)) return; 
+                
+                if(!grouped[p.symbol]) grouped[p.symbol] = { ...p, totalShares: 0, totalCost: 0 };
+                grouped[p.symbol].totalShares += p.shares;
+                grouped[p.symbol].totalCost += p.cost;
+            });
+
+            const keys = Object.keys(grouped);
+            if (keys.length === 0) {
+                return `<div class="bubble" style="background:white; padding:16px;">Your portfolio is empty or has corrupted data. Please clear localStorage and try again.</div>`;
+            }
+
+            let listHtml = keys.map(sym => {
+                const p = grouped[sym];
+                return `
+                <div class="portfolio-item">
+                    <div class="portfolio-item-left">
+                        <div class="portfolio-item-symbol">${p.symbol}</div>
+                        <div class="portfolio-item-name">${p.name}</div>
+                    </div>
+                    <div class="portfolio-item-right">
+                        <div class="portfolio-item-value">฿${p.totalCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                        <div class="portfolio-item-pnl">${p.totalShares} shares @ ฿${p.price}</div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            return `
+            <div class="portfolio-card">
+                <div class="portfolio-header">
+                    <div class="portfolio-title">💼 Tracked Portfolio</div>
+                </div>
+                <div class="portfolio-list">
+                    ${listHtml}
+                </div>
+            </div>`;
         }
 
         function renderBalanceCard(balance, currency="THB") {
@@ -741,7 +990,7 @@ def get_chat_html() -> str:
         }
 
         // ═══════════════════════════════════════════
-        // ADD MESSAGE (Detect Charts)
+        // ADD MESSAGE (Detect Charts & Cards)
         // ═══════════════════════════════════════════
         function addMessage(text, sender, showConfirmButtons = false, data = null) {
             const div = document.createElement('div');
@@ -756,7 +1005,12 @@ def get_chat_html() -> str:
             
             const isBalanceData = data && data.balance !== undefined && sender === 'ai';
             const isInvestment = text && text.includes("AI Investment Analysis") && sender === 'ai';
+            const isInvestmentSuccess = text && text.includes("Investment Successful") && sender === 'ai';
             const isSubDashboard = text && text.includes("Subscription Dashboard") && sender === 'ai';
+            const isReceipt = text && text.includes("Created split bill") && sender === 'ai';
+            const isTransferBill = text && text.includes("✅ Transferred ฿") && text.includes("New balance") && sender === 'ai';
+            const isConfirmAction = text && text.includes("Confirm? [y/n]") && sender === 'ai';
+            const isPortfolio = data === 'PORTFOLIO';
 
             // ⭐ 1. Balance Card
             if (isBalanceData) {
@@ -765,14 +1019,25 @@ def get_chat_html() -> str:
                 cardDiv.innerHTML = renderBalanceCard(data.balance, data.currency);
                 bubble.appendChild(cardDiv);
             } 
-            // ⭐ 2. Investment Chart
+            // ⭐ 2. Portfolio Card
+            else if (isPortfolio) {
+                bubble.style.background = 'transparent'; bubble.style.boxShadow = 'none'; bubble.style.padding = '0'; bubble.style.maxWidth = '100%'; bubble.style.border = 'none';
+                bubble.innerHTML = renderPortfolioCard();
+            }
+            // ⭐ 3. Action Card (Confirm)
+            else if (isConfirmAction) {
+                bubble.style.background = 'transparent'; bubble.style.boxShadow = 'none'; bubble.style.padding = '0'; bubble.style.maxWidth = '100%'; bubble.style.border = 'none';
+                bubble.innerHTML = renderActionCard(text);
+            }
+            // ⭐ 4. Investment Chart (Analysis)
             else if (isInvestment) {
                 bubble.style.background = 'transparent'; bubble.style.boxShadow = 'none'; bubble.style.padding = '0'; bubble.style.maxWidth = '100%'; bubble.style.border = 'none';
                 const assets = parseInvestmentText(text);
                 const cardId = 'chart-inv-' + Date.now();
                 
                 let formattedText = text.replace(/🤖 \*\*AI Investment Analysis.*\\n/, '')
-                    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>');
+                    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>')
+                    .split('\\n').join('<br>');
 
                 bubble.innerHTML = `
                     <div class="chart-card">
@@ -783,14 +1048,27 @@ def get_chat_html() -> str:
                 `;
                 setTimeout(() => initChart(cardId, assets.map(a => a.name), assets.map(a => a.alloc), ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe']), 100);
             }
-            // ⭐ 3. Subscription Dashboard Chart
+            // ⭐ 5. Investment Success (บันทึกลง Portfolio)
+            else if (isInvestmentSuccess) {
+                const lastAnalysis = JSON.parse(localStorage.getItem('last_investment') || '[]');
+                if (lastAnalysis.length > 0) {
+                    let portfolio = JSON.parse(localStorage.getItem('ai_portfolio') || '[]');
+                    portfolio.push(...lastAnalysis);
+                    localStorage.setItem('ai_portfolio', JSON.stringify(portfolio));
+                }
+
+                bubble.style.background = 'transparent'; bubble.style.boxShadow = 'none'; bubble.style.padding = '0'; bubble.style.maxWidth = '100%'; bubble.style.border = 'none';
+                bubble.innerHTML = renderSuccessCard(text);
+            }
+            // ⭐ 6. Subscription Dashboard Chart
             else if (isSubDashboard) {
                 bubble.style.background = 'transparent'; bubble.style.boxShadow = 'none'; bubble.style.padding = '0'; bubble.style.maxWidth = '100%'; bubble.style.border = 'none';
                 const subs = parseSubText(text);
                 const cardId = 'chart-sub-' + Date.now();
                 
                 let formattedText = text.replace(/📊 \*\*Subscription Dashboard\*\*\\n/, '')
-                    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>');
+                    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>')
+                    .split('\\n').join('<br>');
 
                 bubble.innerHTML = `
                     <div class="chart-card">
@@ -801,12 +1079,24 @@ def get_chat_html() -> str:
                 `;
                 setTimeout(() => initChart(cardId, subs.map(s => s.name), subs.map(s => s.cost), ['#f093fb', '#f5576c', '#4facfe', '#43e97b', '#fa709a']), 100);
             }
-            // ⭐ 4. Text & Tables ปกติ (รวมถึง Chit-chat)
+            // ⭐ 7. Receipt Card (Split Bill)
+            else if (isReceipt) {
+                bubble.style.background = 'transparent'; bubble.style.boxShadow = 'none'; bubble.style.padding = '0'; bubble.style.maxWidth = '100%'; bubble.style.border = 'none';
+                bubble.innerHTML = renderReceiptCard(text);
+            }
+            // ⭐ 8. Transfer E-Bill
+            else if (isTransferBill) {
+                bubble.style.background = 'transparent'; bubble.style.boxShadow = 'none'; bubble.style.padding = '0'; bubble.style.maxWidth = '100%'; bubble.style.border = 'none';
+                bubble.innerHTML = renderTransferBill(text);
+            }
+            // ⭐ 9. Text & Tables ปกติ
             else {
                 if (text) {
                     const textNode = document.createElement('div');
-                    // ปรับให้ ** กลายเป็น <b> และเพิ่มสีให้ข้อความสำคัญ
-                    let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>');
+                    let formattedText = text
+                        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                        .replace(/\*(.*?)\*/g, '<i>$1</i>')
+                        .split('\\n').join('<br>');
                     textNode.innerHTML = formattedText;
                     bubble.appendChild(textNode);
                 }
@@ -824,18 +1114,48 @@ def get_chat_html() -> str:
                 }
             }
 
-            if (showConfirmButtons) {
+            // ⭐ 10. โชว์ปุ่ม Yes/No แบบดั้งเดิม (ถ้ามี)
+            if (showConfirmButtons && !isConfirmAction) {
                 const btnDiv = document.createElement('div');
                 btnDiv.className = 'confirm-buttons';
+                btnDiv.style.display = 'flex'; btnDiv.style.gap = '0.5rem'; btnDiv.style.marginTop = '0.5rem';
                 const yesBtn = document.createElement('button');
                 yesBtn.className = 'confirm-btn confirm-yes'; yesBtn.textContent = '✅ Yes';
+                yesBtn.style.background = '#10b981'; yesBtn.style.color = 'white'; yesBtn.style.border = 'none'; yesBtn.style.padding = '0.4rem'; yesBtn.style.borderRadius = '6px'; yesBtn.style.flex = '1'; yesBtn.style.cursor = 'pointer';
                 yesBtn.onclick = () => { btnDiv.remove(); input.value = 'y'; send(); };
                 const noBtn = document.createElement('button');
                 noBtn.className = 'confirm-btn confirm-no'; noBtn.textContent = '❌ No';
+                noBtn.style.background = '#f3f4f6'; noBtn.style.color = '#6b7280'; noBtn.style.border = '1px solid #e5e7eb'; noBtn.style.padding = '0.4rem'; noBtn.style.borderRadius = '6px'; noBtn.style.flex = '1'; noBtn.style.cursor = 'pointer';
                 noBtn.onclick = () => { btnDiv.remove(); input.value = 'n'; send(); };
                 btnDiv.appendChild(yesBtn); btnDiv.appendChild(noBtn);
                 bubble.appendChild(btnDiv);
             }
+
+            // ⭐ 11. Save last_investment for parsing (แก้ไขบั๊กการตัดบรรทัด)
+            if (isInvestment) {
+                const lines = text.split('\\n'); 
+                let currentObj = null;
+                const purchases = [];
+                for(let line of lines) {
+                    if (line.trim().startsWith('• **')) {
+                        const m = line.match(/• \*\*(.*?)\*\* \((.*?)\) - ฿([\d,.]+)/);
+                        if(m) {
+                            currentObj = { symbol: m[1].trim(), name: m[2].trim(), price: parseFloat(m[3].replace(/,/g,'')) };
+                        }
+                    } else if (line.includes('Alloc:') && currentObj) {
+                        const m = line.match(/Alloc:\s*([\d.]+)%\s*\(฿([\d,.]+)\)\s*->\s*([\d.]+)\s*shares/);
+                        if(m) {
+                            currentObj.alloc = parseFloat(m[1]);
+                            currentObj.cost = parseFloat(m[2].replace(/,/g,''));
+                            currentObj.shares = parseFloat(m[3].replace(/,/g,''));
+                            purchases.push(currentObj);
+                            currentObj = null;
+                        }
+                    }
+                }
+                localStorage.setItem('last_investment', JSON.stringify(purchases));
+            }
+
             div.appendChild(bubble);
             if (sender === 'user') {
                 const avatar = document.createElement('div');
@@ -869,6 +1189,18 @@ def get_chat_html() -> str:
             addMessage(text, 'user');
             input.value = '';
             sendBtn.disabled = true;
+
+            // ⭐ Intercept Portfolio Command (สำหรับ Demo)
+            if (text.toLowerCase() === 'show portfolio' || text.toLowerCase() === 'ai portfolio') {
+                showTyping();
+                setTimeout(() => {
+                    hideTyping();
+                    addMessage("", 'ai', false, 'PORTFOLIO');
+                    sendBtn.disabled = false;
+                    input.focus();
+                }, 800);
+                return;
+            }
 
             if (pendingMFA) {
                 try {
