@@ -1990,10 +1990,16 @@ def get_chat_html() -> str:
             hideTyping();
             if (data.requires_mfa) {
                 pendingIntent = null;
-                addMessage(data.reply, 'ai');
+                
 
                 const otpMatch = data.reply.match(/(?:Demo OTP|OTP|Code)[^\d]*(\d{6})/i);
                 const otpCode = otpMatch ? otpMatch[1] : '123456';
+
+                let cleanReply = (data.reply || '').split('📱')[0].split('OTP sent')[0].trim();
+    
+                // ⭐ แสดงแค่ชื่อ Action ที่จะทำ (เช่น 🔴 HIGH-RISK ACTION Cancel card)
+                addMessage(cleanReply + "\\n\\n🔒 Please verify the OTP in the popup.", 'ai');
+
 
                 setTimeout(() => {
                     showPushNotification(otpCode);  // ⭐ แสดง Notification ลอยลงมา
