@@ -1991,7 +1991,14 @@ def get_chat_html() -> str:
             if (data.requires_mfa) {
                 pendingIntent = null;
                 addMessage(data.reply, 'ai');
-                setTimeout(showOTPModal, 350);
+
+                const otpMatch = data.reply.match(/(?:Demo OTP|OTP|Code)[^\d]*(\d{6})/i);
+                const otpCode = otpMatch ? otpMatch[1] : '123456';
+
+                setTimeout(() => {
+                    showPushNotification(otpCode);  // ⭐ แสดง Notification ลอยลงมา
+                    showOTPModal(otpCode);          // ⭐ เปิด Modal พร้อมกรอก
+                }, 300);
             } else if (data.requires_confirmation && data.intent) {
                 pendingIntent = data.intent; pendingMFA = false;
                 addMessage(data.reply, 'ai', true);
