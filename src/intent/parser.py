@@ -56,6 +56,10 @@ def find_similar_word(text: str) -> Optional[str]:
 def parse_with_mock(text: str) -> Dict[str, Any]:
     text_lower = text.lower().strip()
 
+    # ⭐ ดักจับ Cross Scenario
+    if any(k in text_lower for k in ["end of month", "financial reset", "monthly reset", "reset month", "cross scenario"]):
+        return {"action": "cross_scenario_reset", "params": {}, "confidence": 0.95}
+    
     # ⭐ 1. ดักจับการคุยเล่นพื้นฐาน (กรณีไม่ได้ใช้ DeepSeek หรือเน็ตหลุด)
     if any(k in text_lower for k in ["hello", "hi", "hey", "สวัสดี", "ดีครับ", "ดีค่ะ", "หวัดดี"]):
         return {"action": "chit_chat", "params": {"reply": "สวัสดีครับ! ผมคือ Banking AI Assistant มีอะไรให้ผมช่วยจัดการเงินไหมครับ? 😊"}, "confidence": 0.9}
