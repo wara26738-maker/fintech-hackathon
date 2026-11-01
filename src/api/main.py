@@ -589,10 +589,105 @@ def get_chat_html() -> str:
             .quick-card { min-height: 98px; }
             .balance-amount { font-size: 28px; }
         }
+                /* ===== OTP Modal ===== */
+        .otp-modal-content { text-align: center; max-width: 360px; }
+        .otp-icon-wrap {
+            width: 64px; height: 64px; margin: 0 auto 14px;
+            border-radius: 50%; background: #eef1f8;
+            display: grid; place-items: center; font-size: 30px;
+        }
+        .otp-modal-content h2 {
+            font-size: 1.2rem; margin-bottom: 6px; color: var(--navy);
+            text-align: center; font-weight: 800;
+        }
+        .otp-subtitle {
+            font-size: 13px; color: #666; margin-bottom: 20px; line-height: 1.5;
+        }
+        .otp-inputs {
+            display: flex; gap: 6px; justify-content: center; margin-bottom: 14px;
+        }
+        .otp-inputs input {
+            width: 44px; height: 54px; text-align: center;
+            font-size: 22px; font-weight: 800;
+            border: 2px solid #e0e0e0; border-radius: 12px;
+            outline: none; color: var(--navy);
+            transition: all .2s; background: white;
+        }
+        .otp-inputs input:focus {
+            border-color: var(--navy); box-shadow: 0 0 0 3px rgba(20,38,79,.1);
+        }
+        .otp-inputs input.filled { border-color: var(--navy); background: #f8f6f0; }
+        .otp-hint {
+            font-size: 12px; color: #666; margin-bottom: 12px;
+            padding: 10px; background: #f8f6f0; border-radius: 10px; line-height: 1.4;
+        }
+        .otp-hint b { color: var(--navy); font-weight: 800; }
+        .otp-error {
+            color: #dc2626; font-size: 12.5px; font-weight: 600;
+            margin-bottom: 10px; min-height: 18px; line-height: 1.3;
+        }
+        .otp-resend { font-size: 12px; color: #888; margin-bottom: 14px; }
+        .otp-resend a {
+            color: var(--navy); font-weight: 700; cursor: pointer;
+            text-decoration: underline;
+        }
+
+        /* ===== Toast ===== */
+        .toast {
+            position: absolute; top: 16px; left: 50%;
+            transform: translateX(-50%) translateY(-120px);
+            background: var(--navy); color: white;
+            padding: 12px 18px; border-radius: 14px;
+            font-size: 13px; font-weight: 600;
+            box-shadow: 0 10px 30px rgba(20,38,79,.3);
+            z-index: 2000;
+            transition: transform .35s cubic-bezier(.34,1.56,.64,1), opacity .2s;
+            max-width: 90%; text-align: center;
+            display: flex; align-items: center; gap: 8px;
+            opacity: 0; pointer-events: none;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        @media (max-width: 380px) {
+            .otp-inputs { gap: 5px; }
+            .otp-inputs input { width: 38px; height: 48px; font-size: 18px; }
+        }
+                /* ===== Push Notification Banner ===== */
+        .push-notification {
+            position: absolute;
+            top: 10px; left: 10px; right: 10px;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 18px;
+            padding: 14px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.05);
+            display: flex; gap: 12px; align-items: flex-start;
+            transform: translateY(-150%);
+            transition: transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 3000;
+        }
+        .push-notification.show { transform: translateY(0); }
+        .pn-icon {
+            width: 38px; height: 38px; border-radius: 10px;
+            background: var(--navy); color: white;
+            display: grid; place-items: center; font-size: 20px; flex-shrink: 0;
+        }
+        .pn-content { flex: 1; min-width: 0; }
+        .pn-header {
+            display: flex; justify-content: space-between;
+            font-size: 11px; color: #666; text-transform: uppercase;
+            font-weight: 700; margin-bottom: 3px; letter-spacing: 0.5px;
+        }
+        .pn-title { font-size: 14px; font-weight: 800; color: var(--navy); margin-bottom: 2px; }
+        .pn-body { font-size: 13px; color: #333; line-height: 1.4; }
+        .pn-body b { font-size: 16px; color: var(--navy); letter-spacing: 1.5px; }
     </style>
 </head>
 <body>
 <div class="app">
+    <!-- Notification Banner -->
+    <div id="push-notification" class="push-notification"></div>
 
     <!-- ============ HOME DASHBOARD ============ -->
     <main id="dashboardScreen" class="dashboard">
@@ -1015,6 +1110,32 @@ def get_chat_html() -> str:
         </div>
     </div>
 
+    <!-- OTP Modal -->
+    <div class="modal-overlay" id="otp-modal">
+        <div class="modal-content otp-modal-content">
+            <div class="otp-icon-wrap">🔐</div>
+            <h2>Verification Required</h2>
+            <p class="otp-subtitle">Enter the 6-digit code sent to your phone</p>
+            <div class="otp-inputs">
+                <input type="text" maxlength="1" inputmode="numeric" id="otp-1" autocomplete="one-time-code">
+                <input type="text" maxlength="1" inputmode="numeric" id="otp-2">
+                <input type="text" maxlength="1" inputmode="numeric" id="otp-3">
+                <input type="text" maxlength="1" inputmode="numeric" id="otp-4">
+                <input type="text" maxlength="1" inputmode="numeric" id="otp-5">
+                <input type="text" maxlength="1" inputmode="numeric" id="otp-6">
+            </div>
+            <div class="otp-hint">💡 Demo code: <b>123456</b></div>
+            <div class="otp-error" id="otp-error"></div>
+            <div class="otp-resend">
+                Didn't receive the code? <a onclick="resendOTP()">Resend</a>
+            </div>
+            <div class="modal-buttons" style="margin-top: 0;">
+                <button class="btn-cancel" onclick="cancelOTP()">Cancel</button>
+                <button class="btn-submit" id="otp-submit" onclick="submitOTP()">Verify</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ============ BOTTOM NAV ============ -->
     <nav class="bottom-nav">
         <button class="nav-item active" id="nav-home" type="button" onclick="showDashboard()">
@@ -1177,6 +1298,184 @@ def get_chat_html() -> str:
         closeModal('cancel-card-modal');
         quickSend(`Cancel card ${cardId}`);
     }
+
+        // ===== OTP Modal =====
+    let otpModalOpen = false;
+
+    function showToast(msg) {
+        let toast = document.getElementById('toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'toast';
+            toast.className = 'toast';
+            document.querySelector('.app').appendChild(toast);
+        }
+        toast.innerHTML = msg;
+        toast.classList.remove('show');
+        void toast.offsetWidth;
+        toast.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => toast.classList.remove('show'), 3200);
+    }
+
+    function showPushNotification(otpCode) {
+        const pn = document.getElementById('push-notification');
+        pn.innerHTML = `
+            <div class="pn-icon">🏦</div>
+            <div class="pn-content">
+                <div class="pn-header">
+                    <span>Banking AI</span>
+                    <span>now</span>
+                </div>
+                <div class="pn-title">Verification Code</div>
+                <div class="pn-body">Your OTP is <b>${otpCode}</b>. Do not share this code.</div>
+            </div>
+        `;
+        // Reset animation
+        pn.classList.remove('show');
+        void pn.offsetWidth;
+        pn.classList.add('show');
+
+        // ซ่อนหลัง 4 วินาที
+        if (pn._timeout) clearTimeout(pn._timeout);
+        pn._timeout = setTimeout(() => {
+            pn.classList.remove('show');
+        }, 4000);
+    }
+
+    function showOTPModal(otpCode = null) {
+    if (!chatScreen.classList.contains('open')) {
+        dashboardScreen.style.display = 'none';
+        chatScreen.classList.add('open');
+        setActiveNav('nav-ai');
+    }
+    otpModalOpen = true;
+    pendingMFA = true;
+    document.getElementById('otp-modal').style.display = 'flex';
+    document.getElementById('input').disabled = true;
+    document.getElementById('send').disabled = true;
+    document.getElementById('otp-error').textContent = '';
+    
+    // อัปเดต Demo code ใน Modal ให้ตรงกับที่ได้รับ (ถ้ามี)
+    const hintEl = document.querySelector('.otp-hint');
+    if (otpCode && hintEl) {
+        hintEl.innerHTML = `💡 Demo code: <b>${otpCode}</b>`;
+    }
+
+    for (let i = 1; i <= 6; i++) {
+        const el = document.getElementById('otp-' + i);
+        el.value = '';
+        el.classList.remove('filled');
+    }
+    setTimeout(() => document.getElementById('otp-1').focus(), 350);
+}
+
+    function hideOTPModal() {
+        otpModalOpen = false;
+        document.getElementById('otp-modal').style.display = 'none';
+        document.getElementById('input').disabled = false;
+        document.getElementById('send').disabled = false;
+    }
+
+    function setupOTPInputs() {
+        for (let i = 1; i <= 6; i++) {
+            const el = document.getElementById('otp-' + i);
+            el.addEventListener('input', (e) => {
+                const val = e.target.value.replace(/\D/g, '').slice(-1);
+                e.target.value = val;
+                el.classList.toggle('filled', !!val);
+                if (val && i < 6) document.getElementById('otp-' + (i + 1)).focus();
+                const allFilled = [...Array(6)].every((_, idx) => document.getElementById('otp-' + (idx+1)).value);
+                if (allFilled) setTimeout(submitOTP, 150);
+            });
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && i > 1) {
+                    document.getElementById('otp-' + (i - 1)).focus();
+                } else if (e.key === 'Enter') {
+                    submitOTP();
+                }
+            });
+            el.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+                for (let j = 0; j < 6; j++) {
+                    const box = document.getElementById('otp-' + (j + 1));
+                    box.value = paste[j] || '';
+                    box.classList.toggle('filled', !!paste[j]);
+                }
+                if (paste.length >= 1) {
+                    document.getElementById('otp-' + Math.min(paste.length + 1, 6)).focus();
+                }
+            });
+        }
+    }
+
+    function cancelOTP() {
+        hideOTPModal();
+        pendingMFA = false;
+        addMessage('❌ Verification cancelled', 'ai');
+    }
+
+    function resendOTP() {
+        showToast('📱 New code sent!');
+        for (let i = 1; i <= 6; i++) {
+            const el = document.getElementById('otp-' + i);
+            el.value = '';
+            el.classList.remove('filled');
+        }
+        document.getElementById('otp-error').textContent = '';
+        document.getElementById('otp-1').focus();
+    }
+
+    async function submitOTP() {
+        const otp = [...Array(6)].map((_, i) => document.getElementById('otp-' + (i+1)).value).join('');
+        const errEl = document.getElementById('otp-error');
+        if (otp.length !== 6) { errEl.textContent = 'Please enter all 6 digits'; return; }
+
+        const btn = document.getElementById('otp-submit');
+        btn.disabled = true;
+        btn.textContent = 'Verifying...';
+        errEl.textContent = '';
+
+        try {
+            const res = await fetch('/api/verify-otp', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({user_id: 1, otp: otp})
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                errEl.textContent = data.detail || 'Verification failed';
+                btn.disabled = false; btn.textContent = 'Verify';
+                return;
+            }
+            if (data.status === 'error') {
+                errEl.textContent = data.reply || 'Invalid code. Please try again.';
+                btn.disabled = false; btn.textContent = 'Verify';
+                for (let i = 1; i <= 6; i++) {
+                    const el = document.getElementById('otp-' + i);
+                    el.value = ''; el.classList.remove('filled');
+                }
+                document.getElementById('otp-1').focus();
+                return;
+            }
+            // Success
+            hideOTPModal();
+            pendingMFA = false;
+            addMessage('🔐 ' + otp.replace(/./g, '•'), 'user');
+            addMessage(data.reply, 'ai', false, data.data);
+            showToast('✅ Verified successfully');
+        } catch (e) {
+            errEl.textContent = 'Error: ' + e.message;
+            showToast('❌ Network error');
+        }
+        btn.disabled = false;
+        btn.textContent = 'Verify';
+    }
+
+    // init on load
+    setupOTPInputs();
 
     // ===== Parsers & Charts =====
     function parseInvestmentText(text) {
@@ -1653,24 +1952,6 @@ def get_chat_html() -> str:
             return;
         }
 
-        if (pendingMFA) {
-            try {
-                const res = await fetch('/api/verify-otp', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({user_id: 1, otp: text})
-                });
-                const data = await res.json();
-                if (!res.ok) addMessage('❌ ' + (data.detail || 'Error'), 'ai');
-                else if (data.status === 'error') addMessage(data.reply, 'ai');
-                else {
-                    addMessage(data.reply, 'ai', false, data.data);
-                    if (!data.requires_mfa) pendingMFA = false;
-                }
-            } catch (e) { addMessage('❌ Error: ' + e.message, 'ai'); pendingMFA = false; }
-            sendBtn.disabled = false; input.focus(); return;
-        }
-
         if (pendingIntent && (text.toLowerCase() === 'y' || text.toLowerCase() === 'yes')) {
             try {
                 const res = await fetch('/api/confirm', {
@@ -1679,12 +1960,19 @@ def get_chat_html() -> str:
                     body: JSON.stringify({intent: pendingIntent, user_id: 1})
                 });
                 const data = await res.json();
-                if (!res.ok) addMessage('❌ ' + (data.detail || 'Error'), 'ai');
-                else addMessage(data.reply, 'ai', false, data.data);
+                if (!res.ok) {
+                    addMessage('❌ ' + (data.detail || 'Error'), 'ai');
+                } else if (data.requires_mfa) {
+                    addMessage(data.reply, 'ai');
+                    setTimeout(showOTPModal, 350);
+                } else {
+                    addMessage(data.reply, 'ai', false, data.data);
+                }
                 pendingIntent = null;
             } catch (e) { addMessage('❌ Error: ' + e.message, 'ai'); }
             sendBtn.disabled = false; input.focus(); return;
         }
+        
 
         if (pendingIntent && (text.toLowerCase() === 'n' || text.toLowerCase() === 'no')) {
             addMessage('❌ Cancelled', 'ai');
@@ -1701,8 +1989,9 @@ def get_chat_html() -> str:
             const data = await res.json();
             hideTyping();
             if (data.requires_mfa) {
-                pendingMFA = true; pendingIntent = null;
+                pendingIntent = null;
                 addMessage(data.reply, 'ai');
+                setTimeout(showOTPModal, 350);
             } else if (data.requires_confirmation && data.intent) {
                 pendingIntent = data.intent; pendingMFA = false;
                 addMessage(data.reply, 'ai', true);
