@@ -1,7 +1,7 @@
 # 🏦 Banking AI Agent — Fintech Hackathon
 
 > An AI-powered banking agent integrated into existing banking apps,
-> making financial management smarter, more accessible, and personalized.
+> making financial management smarter, more accessible, and personalized. It serves as personal financial manager for users.
 
 [![Python](https://img.shields.io/badge/Python-3.11-blue)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-green)](https://fastapi.tiangolo.com/)
