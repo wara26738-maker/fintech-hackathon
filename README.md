@@ -68,9 +68,10 @@ source .venv/bin/activate        # macOS / Linux
 
 # 3. Install dependencies
 pip install -r requirements.txt
+pip install akshare baostock
 
 # 4. Configure environment
-cp .env.example .env
+cp .env.example .env(put api by yourself)
 
 # 5. Run the API
 python -m src.api.main
