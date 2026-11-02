@@ -1,21 +1,12 @@
 # src/api/main.py
 import os
 from contextlib import asynccontextmanager
-import sys
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-# ⭐ SAFE uvloop: prevents crash if not installed on Linux/Mac
-if sys.platform != "win32":
-    try:
-        import uvloop
-        uvloop.install()
-    except ImportError:
-        pass
-    
 from ..agent.loop import process_message, confirm_action, verify_otp, handle_suggestion, has_pending_suggestion
 from ..db.session import init_db
 
@@ -1972,8 +1963,15 @@ def get_chat_html() -> str:
                 if (!res.ok) {
                     addMessage('❌ ' + (data.detail || 'Error'), 'ai');
                 } else if (data.requires_mfa) {
-                    addMessage(data.reply, 'ai');
-                    setTimeout(showOTPModal, 350);
+                    // ⭐ เหมือน chat flow: extract OTP + push notification + modal
+                    const otpMatch = (data.reply || '').match(/(?:Demo OTP|OTP|Code)[^\d]*(\d{6})/i);
+                    const otpCode = otpMatch ? otpMatch[1] : '123456';
+                    let cleanReply = (data.reply || '').split('📱')[0].split('OTP sent')[0].trim();
+                    addMessage(cleanReply + "\\n\\n🔒 Please verify the OTP in the popup.", 'ai');
+                    setTimeout(() => {
+                        showPushNotification(otpCode);
+                        showOTPModal(otpCode);
+                    }, 300);
                 } else {
                     addMessage(data.reply, 'ai', false, data.data);
                 }
