@@ -49,7 +49,7 @@ def _summarize_action(action: str, params: Dict) -> str:
     if action == "smart_invest":
         return f"Invest ฿{int(params.get('budget', 0)):,}"
     if action == "cross_scenario_reset":
-        return "End-of-Month Financial Reset"
+        return "Monthly Financial Reset (5 automated actions)"
     return f"Perform action: {action}"
 
 def _error_response(result: Dict) -> Dict[str, Any]:
@@ -343,6 +343,8 @@ def verify_otp(user_id: int, otp: str) -> Dict[str, Any]:
         result = _execute_transfer(params, user_id, verified=True)
     elif action == "smart_invest":
         result = confirm_action(intent, user_id)
+    elif action == "cross_scenario_reset":                          # ⭐ NEW
+        result = _execute_cross_scenario_reset(params, user_id) 
     elif action in ["block_card", "unblock_card", "cancel_card", "cancel_subscription"]:
         result = confirm_action(intent, user_id)
     else:
@@ -359,33 +361,9 @@ def confirm_action(intent: Dict[str, Any], user_id: int = 1) -> Dict[str, Any]:
         return _execute_transfer(params, user_id, verified=True)
 
     # ⭐ Execute Cross-Scenario
+        # ⭐ Cross-scenario ต้องผ่าน OTP ก่อน (ไม่ execute ทันที)
     if action == "cross_scenario_reset":
-        cancel_target = params.get("cancel_target", "Netflix")
-        invest_amount = params.get("invest_amount", 0)
-        risk = params.get("risk", "Medium")
-        goal = params.get("goal", "Growth")
-
-        # 1. Cancel Subscription
-        cancel_subscription(merchant_name=cancel_target)
-        
-        # 2. Execute Investment
-        inv_result = execute_investment(user_id, invest_amount, "600036, 000858")
-
-        # Create Success Summary
-        reply = (
-            f"✅ **Financial Reset Executed Successfully!**\n\n"
-            f"✂️ Cancelled: {cancel_target} (Saved ฿419)\n"
-            f"💳 Card Strategy: Switched to Cashback Card\n"
-            f"📈 Invested: ฿{invest_amount} into AI Portfolio\n"
-            f"💰 New Cash Balance: ฿{inv_result.get('new_balance', 0):,.2f}\n\n"
-            f"Your month is now optimized for growth!"
-        )
-        
-        return {
-            "reply": reply,
-            "status": "success",
-            "tier": "red"
-        }
+        return _create_otp_challenge(user_id, "cross_scenario_reset", params, intent)
 
     if action == "smart_invest":
         budget = params.get("budget", 0)
@@ -588,6 +566,25 @@ def _execute_action(action: str, params: Dict, user_id: int) -> Dict[str, Any]:
 
     except Exception as e:
         return {"reply": f"❌ Error: {str(e)}", "status": "error", "tier": "green"}
+
+def _execute_cross_scenario_reset(params: Dict, user_id: int) -> Dict[str, Any]:
+    cancel_target  = params.get("cancel_target", "Netflix")
+    invest_amount  = params.get("invest_amount", 0)
+    risk           = params.get("risk", "Medium")
+    goal           = params.get("goal", "Growth")
+
+    cancel_subscription(merchant_name=cancel_target)
+    inv_result = execute_investment(user_id, invest_amount, "600036, 000858")
+
+    reply = (
+        f"✅ **Financial Reset Executed Successfully!**\n\n"
+        f"✂️ Cancelled: {cancel_target} (Saved ฿419)\n"
+        f"💳 Card Strategy: Switched to Cashback Card\n"
+        f"📈 Invested: ฿{invest_amount} into AI Portfolio\n"
+        f"💰 New Cash Balance: ฿{inv_result.get('new_balance', 0):,.2f}\n\n"
+        f"Your month is now optimized for growth!"
+    )
+    return {"reply": reply, "status": "success", "tier": "red"}
 
 def _execute_transfer(params: Dict, user_id: int, verified: bool = False) -> Dict[str, Any]:
     beneficiary_name = (
